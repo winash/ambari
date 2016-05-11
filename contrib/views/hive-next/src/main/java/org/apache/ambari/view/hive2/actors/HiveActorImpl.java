@@ -1,34 +1,48 @@
 package org.apache.ambari.view.hive2.actors;
 
 import com.google.common.base.Optional;
+import org.apache.ambari.view.hive2.internal.Connectable;
 import org.apache.ambari.view.hive2.internal.ConnectionException;
+import org.apache.ambari.view.hive2.internal.HiveConnection;
+import org.apache.ambari.view.hive2.internal.ConnectionProperties;
 import org.apache.ambari.view.hive2.internal.HiveTask;
 
 import java.sql.Connection;
 
 public class HiveActorImpl implements HiveActor {
 
-    private Optional<HiveConnection> hiveConnection = Optional.absent();
+    private Optional<Connectable> connection = Optional.absent();
 
     @Override
     public void execute(HiveTask hiveTask) {
 
         // check the connection
-        if(!hiveConnection.isPresent()){
-            hiveConnection = Optional.of(HiveConnection.from(hiveTask.getConnectionProperties()));
+        if(!connection.isPresent()){
+            ConnectionProperties connectionProperties = hiveTask.getConnectionProperties();
+            Class<? extends Connectable> connectionClass = hiveTask.getConnectionClass();
+
+            try {
+                Connectable connectable = connectionClass.newInstance();
+                connectable.setProperties(connectionProperties);
+                connection = Optional.of(connectable);
+
+            } catch (InstantiationException e) {
+                // TODO: Handle exception
+            } catch (IllegalAccessException e) {
+               // TODO: Handle exception
+            }
         }
         // make the connection to Hive
         try {
-            if(!(hiveConnection.get().isOpen()))
-                hiveConnection.get().connect();
+            if(!(connection.get().isOpen()))
+                connection.get().connect();
         } catch (ConnectionException e) {
             // TODO: handle connection failure
         }
 
         // at this point we should have a hive connection, and an underlying JDBC
         // javax.sql hiveConnection
-        Optional<Connection> connection = this.hiveConnection.get().getConnection();
-
+        Optional<Connection> connection = this.connection.get().getConnection();
         // Do something
 
 
@@ -37,9 +51,9 @@ public class HiveActorImpl implements HiveActor {
 
     @Override
     public void closeConnection() {
-        if(hiveConnection.isPresent()){
+        if(connection.isPresent()){
             try {
-                hiveConnection.get().disconnect();
+                connection.get().disconnect();
 
             } catch (ConnectionException e) {
                 e.printStackTrace();

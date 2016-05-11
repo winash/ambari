@@ -1,9 +1,6 @@
-package org.apache.ambari.view.hive2.actors;
+package org.apache.ambari.view.hive2.internal;
 
 import com.google.common.base.Optional;
-import org.apache.ambari.view.hive2.internal.Connectable;
-import org.apache.ambari.view.hive2.internal.ConnectionException;
-import org.apache.ambari.view.hive2.internal.HiveConnectionProps;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -18,17 +15,9 @@ import java.sql.SQLException;
 public class HiveConnection implements Connectable {
 
     private static String DRIVER_NAME = "org.apache.hive.jdbc.HiveDriver";
-    private final HiveConnectionProps connectionProps;
+    private  ConnectionProperties connectionProps;
 
     private Optional<Connection> connection = Optional.absent();
-
-    private HiveConnection(HiveConnectionProps connectionProps) {
-        this.connectionProps = connectionProps;
-    }
-
-    public static HiveConnection from(HiveConnectionProps connectionProps){
-        return new HiveConnection(connectionProps);
-    }
 
 
     @Override
@@ -64,6 +53,16 @@ public class HiveConnection implements Connectable {
                 throw new ConnectionException(e,"Cannot close the hive connection with connect string "+ connectionProps.asUrlWithoutCredentials());
             }
         }
+    }
+
+    /**
+     * Set connection properties
+     *
+     * @param properties
+     */
+    @Override
+    public void setProperties(ConnectionProperties properties) {
+        this.connectionProps = properties;
     }
 
     public Optional<Connection> getConnection() {
