@@ -62,7 +62,7 @@ public class HiveTaskMessage implements HiveTask {
      * @return
      */
     @Override
-    public HiveConnectionProps getCredentials() {
+    public HiveConnectionProps getConnectionProperties() {
         return connectionProps;
     }
 

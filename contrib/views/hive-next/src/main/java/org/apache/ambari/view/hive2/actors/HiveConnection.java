@@ -8,7 +8,6 @@ import org.apache.ambari.view.hive2.internal.HiveConnectionProps;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 
 /**
  * Composition over a Hive jdbc connection
@@ -23,8 +22,12 @@ public class HiveConnection implements Connectable {
 
     private Optional<Connection> connection = Optional.absent();
 
-    public HiveConnection(HiveConnectionProps connectionProps) {
+    private HiveConnection(HiveConnectionProps connectionProps) {
         this.connectionProps = connectionProps;
+    }
+
+    public static HiveConnection from(HiveConnectionProps connectionProps){
+        return new HiveConnection(connectionProps);
     }
 
 
