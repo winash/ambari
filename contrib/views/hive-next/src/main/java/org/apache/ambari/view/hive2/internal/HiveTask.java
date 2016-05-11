@@ -24,7 +24,10 @@ public interface HiveTask {
      * Connection properties pulled from the view context and request
      * @return
      */
-    HiveConnectionProps getConnectionProperties();
+
+    Class<? extends Connectable> getConnectionClass();
+
+    ConnectionProperties getConnectionProperties();
 
     HiveQuery.HiveQueries getQueries();
 

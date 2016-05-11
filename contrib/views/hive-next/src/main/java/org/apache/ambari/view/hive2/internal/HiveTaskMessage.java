@@ -1,16 +1,15 @@
 package org.apache.ambari.view.hive2.internal;
 
-import org.apache.ambari.view.ViewContext;
-
 public class HiveTaskMessage implements HiveTask {
 
     private Long id;
     private String instance;
-    private HiveConnectionProps connectionProps;
+    private ConnectionProperties connectionProps;
     private HiveQuery.HiveQueries queries;
+    private Class<? extends Connectable> connectable = HiveConnection.class;
 
 
-    public void setConnectionProps(HiveConnectionProps connectionProps) {
+    public void setConnectionProps(ConnectionProperties connectionProps) {
         this.connectionProps = connectionProps;
     }
 
@@ -24,6 +23,11 @@ public class HiveTaskMessage implements HiveTask {
 
     public void setQueries(HiveQuery.HiveQueries queries) {
         this.queries = queries;
+    }
+
+
+    public void setConnectable(Class<? extends Connectable> connectable) {
+        this.connectable = connectable;
     }
 
     /**
@@ -62,7 +66,17 @@ public class HiveTaskMessage implements HiveTask {
      * @return
      */
     @Override
-    public HiveConnectionProps getConnectionProperties() {
+    public Class<? extends Connectable> getConnectionClass() {
+        return connectable;
+    }
+
+    /**
+     * Connection properties pulled from the view context and request
+     *
+     * @return
+     */
+    @Override
+    public ConnectionProperties getConnectionProperties() {
         return connectionProps;
     }
 
@@ -81,4 +95,6 @@ public class HiveTaskMessage implements HiveTask {
                 ", queries=" + queries +
                 '}';
     }
+
+
 }

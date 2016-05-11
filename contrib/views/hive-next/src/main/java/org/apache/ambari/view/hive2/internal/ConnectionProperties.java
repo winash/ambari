@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * Holds all information needed to connect to HS2
  */
-public class HiveConnectionProps {
+public class ConnectionProperties {
 
     private String host;
     private int port;

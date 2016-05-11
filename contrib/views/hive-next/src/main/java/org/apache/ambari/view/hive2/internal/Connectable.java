@@ -10,6 +10,11 @@ import java.sql.Connection;
 public interface Connectable  {
 
     /**
+     * Set connection properties
+     * @param properties
+     */
+    void setProperties(ConnectionProperties properties);
+    /**
      * Get the underlying connection
      * @return an optional wrapping the connection
      */
