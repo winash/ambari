@@ -1,4 +1,4 @@
-package org.apache.ambari.view.hive2.messages;
+package org.apache.ambari.view.hive2.internal;
 
 
 import com.google.common.base.Function;

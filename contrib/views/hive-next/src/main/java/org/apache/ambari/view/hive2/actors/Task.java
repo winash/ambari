@@ -1,6 +1,6 @@
 package org.apache.ambari.view.hive2.actors;
 
-import org.apache.ambari.view.hive2.messages.HiveTask;
+import org.apache.ambari.view.hive2.internal.HiveTask;
 
 public class Task {
 
@@ -52,5 +52,9 @@ public class Task {
         result = 31 * result + (user != null ? user.hashCode() : 0);
         result = 31 * result + (instance != null ? instance.hashCode() : 0);
         return result;
+    }
+
+    public String taskAsString() {
+        return id + ":" + user + ":" + instance;
     }
 }
