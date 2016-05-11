@@ -65,4 +65,12 @@ public class HiveConnectionProps {
                 ", password='" + password + '\'' +
                 '}';
     }
+
+    public String asUrl() {
+        return null;
+    }
+
+    public String asUrlWithoutCredentials() {
+        return null;
+    }
 }

@@ -6,10 +6,15 @@ import org.apache.ambari.view.hive2.internal.ConnectionException;
 import org.apache.ambari.view.hive2.internal.HiveConnectionProps;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 /**
  * Composition over a Hive jdbc connection
+ * This class only provides a connection over which
+ * callers should run their own JDBC statements
+
  */
 public class HiveConnection implements Connectable {
 
@@ -31,8 +36,13 @@ public class HiveConnection implements Connectable {
            throw new ConnectionException(e,"Cannot load the hive JDBC driver");
         }
 
+        try {
+            Connection con = DriverManager.getConnection(connectionProps.asUrl());
+            connection = Optional.of(con);
 
-
+        } catch (SQLException e) {
+            throw new ConnectionException(e,"Cannot open a hive connection with connect string "+connectionProps.asUrlWithoutCredentials());
+        }
 
 
     }
@@ -44,7 +54,13 @@ public class HiveConnection implements Connectable {
 
     @Override
     public void disconnect() throws ConnectionException {
-
+        if(connection.isPresent()){
+            try {
+                connection.get().close();
+            } catch (SQLException e) {
+                throw new ConnectionException(e,"Cannot close the hive connection with connect string "+ connectionProps.asUrlWithoutCredentials());
+            }
+        }
     }
 
     public Optional<Connection> getConnection() {
