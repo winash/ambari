@@ -3,7 +3,6 @@ package org.apache.ambari.view.hive2.actors;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.hive2.internal.Connectable;
 import org.apache.ambari.view.hive2.internal.ConnectionException;
-import org.apache.ambari.view.hive2.internal.HiveConnection;
 import org.apache.ambari.view.hive2.internal.ConnectionProperties;
 import org.apache.ambari.view.hive2.internal.HiveTask;
 
@@ -17,24 +16,15 @@ public class HiveActorImpl implements HiveActor {
     public void execute(HiveTask hiveTask) {
 
         // check the connection
-        if(!connection.isPresent()){
+        if (!connection.isPresent()) {
             ConnectionProperties connectionProperties = hiveTask.getConnectionProperties();
-            Class<? extends Connectable> connectionClass = hiveTask.getConnectionClass();
-
-            try {
-                Connectable connectable = connectionClass.newInstance();
-                connectable.setProperties(connectionProperties);
-                connection = Optional.of(connectable);
-
-            } catch (InstantiationException e) {
-                // TODO: Handle exception
-            } catch (IllegalAccessException e) {
-               // TODO: Handle exception
-            }
+            Connectable connectable = hiveTask.getConnectionClass();
+            connectable.setProperties(connectionProperties);
+            connection = Optional.of(connectable);
         }
         // make the connection to Hive
         try {
-            if(!(connection.get().isOpen()))
+            if (!(connection.get().isOpen()))
                 connection.get().connect();
         } catch (ConnectionException e) {
             // TODO: handle connection failure
@@ -46,12 +36,11 @@ public class HiveActorImpl implements HiveActor {
         // Do something
 
 
-
     }
 
     @Override
     public void closeConnection() {
-        if(connection.isPresent()){
+        if (connection.isPresent()) {
             try {
                 connection.get().disconnect();
 

@@ -6,7 +6,7 @@ public class HiveTaskMessage implements HiveTask {
     private String instance;
     private ConnectionProperties connectionProps;
     private HiveQuery.HiveQueries queries;
-    private Class<? extends Connectable> connectable = HiveConnection.class;
+    private Connectable connectable = new HiveConnection();
 
 
     public void setConnectionProps(ConnectionProperties connectionProps) {
@@ -26,7 +26,7 @@ public class HiveTaskMessage implements HiveTask {
     }
 
 
-    public void setConnectable(Class<? extends Connectable> connectable) {
+    public void setConnectable(Connectable connectable) {
         this.connectable = connectable;
     }
 
@@ -66,7 +66,7 @@ public class HiveTaskMessage implements HiveTask {
      * @return
      */
     @Override
-    public Class<? extends Connectable> getConnectionClass() {
+    public Connectable getConnectionClass() {
         return connectable;
     }
 
