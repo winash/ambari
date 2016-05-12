@@ -18,8 +18,6 @@
 
 package org.apache.ambari.view.hive.utils;
 
-import org.apache.ambari.view.hive.client.HiveInvalidQueryException;
-import org.apache.commons.lang.exception.ExceptionUtils;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,9 +62,9 @@ public class ServiceFormattedException extends WebApplicationException {
     if (exception instanceof AccessControlException) {
       status = 403;
     }
-    if (exception instanceof HiveInvalidQueryException) {
+    /*if (exception instanceof HiveInvalidQueryException) {
       status = 400;
-    }
+    }*/
     return status;
   }
 

@@ -19,13 +19,7 @@
 package org.apache.ambari.view.hive.resources.jobs;
 
 import org.apache.ambari.view.hive.persistence.utils.Indexed;
-import org.apache.ambari.view.hive.utils.ServiceFormattedException;
 import org.apache.commons.beanutils.PropertyUtils;
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
-import org.apache.hive.service.cli.thrift.THandleIdentifier;
-import org.apache.hive.service.cli.thrift.TOperationHandle;
-import org.apache.hive.service.cli.thrift.TOperationType;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
@@ -56,7 +50,7 @@ public class StoredOperationHandle implements Indexed {
   }
 
 
-  public static StoredOperationHandle buildFromTOperationHandle(TOperationHandle handle) {
+  /*public static StoredOperationHandle buildFromTOperationHandle(TOperationHandle handle) {
     StoredOperationHandle storedHandle = new StoredOperationHandle();
     //bool hasResultSet
     storedHandle.setHasResultSet(handle.isHasResultSet());
@@ -68,9 +62,9 @@ public class StoredOperationHandle implements Indexed {
     storedHandle.setGuid(Hex.encodeHexString(handle.getOperationId().getGuid()));
     storedHandle.setSecret(Hex.encodeHexString(handle.getOperationId().getSecret()));
     return storedHandle;
-  }
+  }*/
 
-  public TOperationHandle toTOperationHandle() {
+  /*public TOperationHandle toTOperationHandle() {
     TOperationHandle handle = new TOperationHandle();
     handle.setHasResultSet(isHasResultSet());
     handle.setModifiedRowCount(getModifiedRowCount());
@@ -84,7 +78,7 @@ public class StoredOperationHandle implements Indexed {
     }
     handle.setOperationId(identifier);
     return handle;
-  }
+  }*/
 
   public boolean isHasResultSet() {
     return hasResultSet;

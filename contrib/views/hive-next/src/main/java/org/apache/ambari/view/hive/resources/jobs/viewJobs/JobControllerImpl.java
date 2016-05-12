@@ -19,24 +19,31 @@
 package org.apache.ambari.view.hive.resources.jobs.viewJobs;
 
 import org.apache.ambari.view.ViewContext;
-import org.apache.ambari.view.hive.client.*;
+import org.apache.ambari.view.hive.client.HiveClientException;
+import org.apache.ambari.view.hive.client.HiveClientRuntimeException;
 import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
-import org.apache.ambari.view.hive.resources.jobs.*;
+import org.apache.ambari.view.hive.resources.jobs.LogParser;
+import org.apache.ambari.view.hive.resources.jobs.ModifyNotificationDelegate;
+import org.apache.ambari.view.hive.resources.jobs.ModifyNotificationInvocationHandler;
+import org.apache.ambari.view.hive.resources.jobs.NoOperationStatusSetException;
 import org.apache.ambari.view.hive.resources.jobs.atsJobs.IATSParser;
 import org.apache.ambari.view.hive.resources.savedQueries.SavedQuery;
 import org.apache.ambari.view.hive.resources.savedQueries.SavedQueryResourceManager;
-import org.apache.ambari.view.hive.utils.*;
+import org.apache.ambari.view.hive.utils.BadRequestFormattedException;
+import org.apache.ambari.view.hive.utils.FilePaginator;
+import org.apache.ambari.view.hive.utils.HiveClientFormattedException;
+import org.apache.ambari.view.hive.utils.MisconfigurationFormattedException;
+import org.apache.ambari.view.hive.utils.ServiceFormattedException;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.ambari.view.utils.hdfs.HdfsApiException;
 import org.apache.ambari.view.utils.hdfs.HdfsUtil;
-import org.apache.hive.service.cli.thrift.TSessionHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Date;
 
 public class JobControllerImpl implements JobController, ModifyNotificationDelegate {
   private final static Logger LOG =
@@ -48,8 +55,7 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
   private Job job;
   private boolean modified;
 
-  private OperationHandleControllerFactory opHandleControllerFactory;
-  private ConnectionController hiveConnection;
+  //private OperationHandleControllerFactory opHandleControllerFactory;
   private SavedQueryResourceManager savedQueryResourceManager;
   private IATSParser atsParser;
 
@@ -58,19 +64,19 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
    * Warning: Create JobControllers ONLY using JobControllerFactory!
    */
   public JobControllerImpl(ViewContext context, Job job,
-                           OperationHandleControllerFactory opHandleControllerFactory,
+                           //OperationHandleControllerFactory opHandleControllerFactory,
                            SavedQueryResourceManager savedQueryResourceManager,
                            IATSParser atsParser,
                            HdfsApi hdfsApi) {
     this.context = context;
     setJobPOJO(job);
-    this.opHandleControllerFactory = opHandleControllerFactory;
+    //this.opHandleControllerFactory = opHandleControllerFactory;
     this.savedQueryResourceManager = savedQueryResourceManager;
     this.atsParser = atsParser;
     this.hdfsApi = hdfsApi;
 
-    UserLocalConnection connectionLocal = new UserLocalConnection();
-    this.hiveConnection = new ConnectionController(opHandleControllerFactory, connectionLocal.get(context));
+    //UserLocalConnection connectionLocal = new UserLocalConnection();
+    //this.hiveConnection = new ConnectionController(opHandleControllerFactory, connectionLocal.get(context));
   }
 
   public String getQueryForJob() {
@@ -95,28 +101,31 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
     }
   }
 
-  @Override
+  /*@Override
   public OperationHandleController.OperationStatus getStatus() throws ItemNotFound, HiveClientException, NoOperationStatusSetException {
     OperationHandleController handle = opHandleControllerFactory.getHandleForJob(job);
     return handle.getOperationStatus();
-  }
+  }*/
 
   @Override
   public void submit() {
     setupHiveBeforeQueryExecute();
 
     String query = getQueryForJob();
-    OperationHandleController handleController = hiveConnection.executeQuery(getSession(), query);
+    //OperationHandleController handleController = hiveConnection.executeQuery(getSession(), query);
 
-    handleController.persistHandleForJob(job);
+    //handleController.persistHandleForJob(job);
+
+    //TODO: New implementation
   }
 
   private void setupHiveBeforeQueryExecute() {
     String database = getJobDatabase();
-    hiveConnection.selectDatabase(getSession(), database);
+    //hiveConnection.selectDatabase(getSession(), database);
+    //TODO: New implementation
   }
 
-  private TSessionHandle getSession() {
+  /*private TSessionHandle getSession() {
     try {
       if (job.getSessionTag() != null) {
         return hiveConnection.getSessionByTag(getJob().getSessionTag());
@@ -132,12 +141,12 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
     } catch (HiveClientException e) {
       throw new HiveClientFormattedException(e);
     }
-  }
+  }*/
 
   @Override
   public void cancel() throws ItemNotFound {
-    OperationHandleController handle = opHandleControllerFactory.getHandleForJob(job);
-    handle.cancel();
+    //OperationHandleController handle = opHandleControllerFactory.getHandleForJob(job);
+    //handle.cancel();
   }
 
   @Override
@@ -151,17 +160,17 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
   public void updateOperationStatus() {
     try {
 
-      OperationHandleController handle = opHandleControllerFactory.getHandleForJob(job);
-      OperationHandleController.OperationStatus status = handle.getOperationStatus();
-      job.setStatus(status.status);
+      //OperationHandleController handle = opHandleControllerFactory.getHandleForJob(job);
+      //OperationHandleController.OperationStatus status = handle.getOperationStatus();
+      /*job.setStatus(status.status);
       job.setStatusMessage(status.message);
-      job.setSqlState(status.sqlState);
+      job.setSqlState(status.sqlState);*/
       LOG.debug("Status of job#" + job.getId() + " is " + job.getStatus());
 
-    } catch (NoOperationStatusSetException e) {
+    } catch (Exception /*NoOperationStatusSetException*/ e) {
       LOG.info("Operation state is not set for job#" + job.getId());
 
-    } catch (HiveErrorStatusException e) {
+    } /*catch (HiveErrorStatusException e) {
       LOG.debug("Error updating status for job#" + job.getId() + ": " + e.getMessage());
       job.setStatus(Job.JOB_STATE_UNKNOWN);
 
@@ -170,30 +179,30 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
 
     } catch (ItemNotFound itemNotFound) {
       LOG.debug("No TOperationHandle for job#" + job.getId() + ", can't update status");
-    }
+    }*/
   }
 
   public void updateOperationLogs() {
     try {
-      OperationHandleController handle = opHandleControllerFactory.getHandleForJob(job);
-      String logs = handle.getLogs();
+      //OperationHandleController handle = opHandleControllerFactory.getHandleForJob(job);
+      //String logs = handle.getLogs();
 
-      LogParser info = LogParser.parseLog(logs);
-      LogParser.AppId app = info.getLastAppInList();
-      if (app != null) {
+      //LogParser info = LogParser.parseLog(logs);
+      //LogParser.AppId app = info.getLastAppInList();
+      /*if (app != null) {
         job.setApplicationId(app.getIdentifier());
-      }
+      }*/
 
       String logFilePath = job.getLogFile();
-      HdfsUtil.putStringToFile(hdfsApi, logFilePath, logs);
+      //HdfsUtil.putStringToFile(hdfsApi, logFilePath, logs);
 
     } catch (HiveClientRuntimeException ex) {
       LOG.error("Error while fetching logs: " + ex.getMessage());
-    } catch (ItemNotFound itemNotFound) {
+    } /*catch (ItemNotFound itemNotFound) {
       LOG.debug("No TOperationHandle for job#" + job.getId() + ", can't read logs");
     } catch (HdfsApiException e) {
       throw new ServiceFormattedException(e);
-    }
+    }*/
   }
 
   public boolean isJobEnded() {
@@ -226,16 +235,17 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
     this.jobUnproxied = jobPOJO;
   }
 
-  @Override
+  /*@Override
   public Cursor getResults() throws ItemNotFound {
     OperationHandleController handle = opHandleControllerFactory.getHandleForJob(job);
     return handle.getResults();
-  }
+  }*/
 
   @Override
   public boolean hasResults() throws ItemNotFound {
-    OperationHandleController handle = opHandleControllerFactory.getHandleForJob(job);
-    return handle.hasResults();
+    //OperationHandleController handle = opHandleControllerFactory.getHandleForJob(job);
+    //return handle.hasResults();
+    return false;
   }
 
   @Override

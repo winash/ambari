@@ -20,27 +20,21 @@ package org.apache.ambari.view.hive.resources.browser;
 
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.ViewResourceHandler;
-import org.apache.ambari.view.hive.client.ColumnDescription;
-import org.apache.ambari.view.hive.client.Cursor;
-import org.apache.ambari.view.hive.client.UserLocalConnection;
-import org.apache.ambari.view.hive.resources.jobs.ResultsPaginationController;
 import org.apache.ambari.view.hive.utils.BadRequestFormattedException;
 import org.apache.ambari.view.hive.utils.ServiceFormattedException;
-import org.apache.ambari.view.hive.utils.SharedObjectsFactory;
-import org.apache.commons.collections4.map.PassiveExpiringMap;
-import org.apache.hive.service.cli.thrift.TSessionHandle;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import javax.ws.rs.*;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Callable;
 
 /**
  * Database access resource
@@ -55,7 +49,7 @@ public class HiveBrowserService {
       LoggerFactory.getLogger(HiveBrowserService.class);
 
   private static final long EXPIRING_TIME = 10*60*1000;  // 10 minutes
-  private static Map<String, Cursor> resultsCache;
+  /*private static Map<String, Cursor> resultsCache;
   private UserLocalConnection connectionLocal = new UserLocalConnection();
 
   public static Map<String, Cursor> getResultsCache() {
@@ -66,6 +60,7 @@ public class HiveBrowserService {
     }
     return resultsCache;
   }
+  */
 
   /**
    * Returns list of databases
@@ -84,9 +79,11 @@ public class HiveBrowserService {
     String curl = null;
     try {
       JSONObject response = new JSONObject();
-      TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
-      List<String> tables = connectionLocal.get(context).ddl().getDBList(session, like);
-      response.put("databases", tables);
+      //TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
+      //List<String> tables = connectionLocal.get(context).ddl().getDBList(session, like);
+      //response.put("databases", tables);
+
+      //TODO: New implementation
       return Response.ok(response).build();
     } catch (WebApplicationException ex) {
       throw ex;
@@ -116,7 +113,8 @@ public class HiveBrowserService {
     String curl = null;
     try {
       final String finalLike = like;
-      return ResultsPaginationController.getInstance(context)
+      return null;
+      /*return ResultsPaginationController.getInstance(context)
           .request("databases", searchId, false, fromBeginning, count, format,
                   new Callable<Cursor>() {
                     @Override
@@ -124,7 +122,10 @@ public class HiveBrowserService {
                       TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
                       return connectionLocal.get(context).ddl().getDBListCursor(session, finalLike);
                     }
-                  }).build();
+                  }).build();*/
+
+
+      //TODO: New implementation
     } catch (WebApplicationException ex) {
       throw ex;
     } catch (IllegalArgumentException ex) {
@@ -152,10 +153,13 @@ public class HiveBrowserService {
     String curl = null;
     try {
       JSONObject response = new JSONObject();
-      TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
-      List<String> tables = connectionLocal.get(context).ddl().getTableList(session, db, like);
-      response.put("tables", tables);
+      //TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
+      //List<String> tables = connectionLocal.get(context).ddl().getTableList(session, db, like);
+      //response.put("tables", tables);
       response.put("database", db);
+
+      //TODO: New implementation
+
       return Response.ok(response).build();
     } catch (WebApplicationException ex) {
       throw ex;
@@ -186,7 +190,7 @@ public class HiveBrowserService {
     String curl = null;
     try {
       final String finalLike = like;
-      return ResultsPaginationController.getInstance(context)
+      /*return ResultsPaginationController.getInstance(context)
           .request(db + ":tables", searchId, false, fromBeginning, count, format,
                   new Callable<Cursor>() {
                     @Override
@@ -196,7 +200,11 @@ public class HiveBrowserService {
                       cursor.selectColumns(requestedColumns);
                       return cursor;
                     }
-                  }).build();
+                  }).build();*/
+      return null;
+
+      //TODO: New implementation
+
     } catch (WebApplicationException ex) {
       throw ex;
     } catch (IllegalArgumentException ex) {
@@ -221,12 +229,15 @@ public class HiveBrowserService {
     String curl = null;
     try {
       JSONObject response = new JSONObject();
-      TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
-      List<ColumnDescription> columnDescriptions = connectionLocal.get(context).ddl()
-          .getTableDescription(session, db, table, like, extendedTableDescription);
-      response.put("columns", columnDescriptions);
+      //TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
+      //List<ColumnDescription> columnDescriptions = connectionLocal.get(context).ddl()
+      //    .getTableDescription(session, db, table, like, extendedTableDescription);
+      //response.put("columns", columnDescriptions);
       response.put("database", db);
       response.put("table", table);
+
+      //TODO: New implementation
+
       return Response.ok(response).build();
     } catch (WebApplicationException ex) {
       throw ex;
@@ -253,7 +264,7 @@ public class HiveBrowserService {
                                          @QueryParam("columns") final String requestedColumns) {
     String curl = null;
     try {
-      return ResultsPaginationController.getInstance(context)
+      /*return ResultsPaginationController.getInstance(context)
           .request(db + ":tables:" + table + ":columns", searchId, false, fromBeginning, count, format,
               new Callable<Cursor>() {
                 @Override
@@ -264,7 +275,11 @@ public class HiveBrowserService {
                   cursor.selectColumns(requestedColumns);
                   return cursor;
                 }
-              }).build();
+              }).build();*/
+      return null;
+
+      //TODO: New implementation
+
     } catch (WebApplicationException ex) {
       throw ex;
     } catch (IllegalArgumentException ex) {

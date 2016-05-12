@@ -24,8 +24,6 @@ import org.apache.ambari.view.hive.persistence.utils.Indexed;
 import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
 import org.apache.ambari.view.hive.resources.SharedCRUDResourceManager;
 import org.apache.ambari.view.hive.resources.jobs.viewJobs.Job;
-import org.apache.ambari.view.hive.utils.ServiceFormattedException;
-import org.apache.hive.service.cli.thrift.TOperationHandle;
 
 import java.util.List;
 
@@ -86,7 +84,7 @@ public class OperationHandleResourceManager extends SharedCRUDResourceManager<St
     return handleRelatedJobs.get(0);
   }
 
-  @Override
+  /*@Override
   public void putHandleForJob(TOperationHandle h, Job job) {
     StoredOperationHandle handle = StoredOperationHandle.buildFromTOperationHandle(h);
     handle.setJobId(job.getId());
@@ -102,7 +100,7 @@ public class OperationHandleResourceManager extends SharedCRUDResourceManager<St
     } else {
       create(handle);
     }
-  }
+  }*/
 
   @Override
   public boolean containsHandleForJob(Job job) {

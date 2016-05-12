@@ -22,7 +22,6 @@ package org.apache.ambari.view.hive.resources.jobs;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.client.ColumnDescription;
 import org.apache.ambari.view.hive.client.HiveClientException;
-import org.apache.ambari.view.hive.client.Cursor;
 import org.apache.ambari.view.hive.utils.HiveClientFormattedException;
 import org.apache.ambari.view.hive.utils.ServiceFormattedException;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
@@ -55,9 +54,9 @@ public class ResultsPaginationController {
 
   private static final long EXPIRING_TIME = 10*60*1000;  // 10 minutes
   private static final int DEFAULT_FETCH_COUNT = 50;
-  private Map<String, Cursor> resultsCache;
+  //private Map<String, Cursor> resultsCache;
 
-  public static class CustomTimeToLiveExpirationPolicy extends PassiveExpiringMap.ConstantTimeToLiveExpirationPolicy<String, Cursor> {
+  /*public static class CustomTimeToLiveExpirationPolicy extends PassiveExpiringMap.ConstantTimeToLiveExpirationPolicy<String, Cursor> {
     public CustomTimeToLiveExpirationPolicy(long timeToLiveMillis) {
       super(timeToLiveMillis);
     }
@@ -69,16 +68,16 @@ public class ResultsPaginationController {
       }
       return super.expirationTime(key, value);
     }
-  }
+  }*/
 
-  private Map<String, Cursor> getResultsCache() {
+  /*private Map<String, Cursor> getResultsCache() {
     if (resultsCache == null) {
       PassiveExpiringMap<String, Cursor> resultsCacheExpiringMap =
           new PassiveExpiringMap<String, Cursor>(new CustomTimeToLiveExpirationPolicy(EXPIRING_TIME));
       resultsCache = Collections.synchronizedMap(resultsCacheExpiringMap);
     }
     return resultsCache;
-  }
+  }*/
 
   /**
    * Renew timer of cache entry.
@@ -86,18 +85,18 @@ public class ResultsPaginationController {
    * @return false if entry not found; true if renew was ok
    */
   public boolean keepAlive(String key, String searchId) {
-    if (searchId == null)
+    /*if (searchId == null)
       searchId = DEFAULT_SEARCH_ID;
     String effectiveKey = key + "?" + searchId;
     if (!getResultsCache().containsKey(effectiveKey)) {
       return false;
     }
     Cursor cursor = getResultsCache().get(effectiveKey);
-    getResultsCache().put(effectiveKey, cursor);
+    getResultsCache().put(effectiveKey, cursor);*/
     return true;
   }
 
-  private Cursor getResultsSet(String key, Callable<Cursor> makeResultsSet) {
+  /*private Cursor getResultsSet(String key, Callable<Cursor> makeResultsSet) {
     if (!getResultsCache().containsKey(key)) {
       Cursor resultSet = null;
       try {
@@ -111,9 +110,9 @@ public class ResultsPaginationController {
     }
 
     return getResultsCache().get(key);
-  }
+  }*/
 
-  public Response.ResponseBuilder request(String key, String searchId, boolean canExpire, String fromBeginning, Integer count, String format, Callable<Cursor> makeResultsSet) throws HiveClientException {
+  /*public Response.ResponseBuilder request(String key, String searchId, boolean canExpire, String fromBeginning, Integer count, String format, Callable<Cursor> makeResultsSet) throws HiveClientException {
     if (searchId == null)
       searchId = DEFAULT_SEARCH_ID;
     key = key + "?" + searchId;
@@ -153,7 +152,7 @@ public class ResultsPaginationController {
       resultsResponse.setHasResults(true);
       return Response.ok(resultsResponse);
     }
-  }
+  }*/
 
   public static Response.ResponseBuilder emptyResponse() {
     ResultsResponse resultsResponse = new ResultsResponse();

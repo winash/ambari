@@ -32,7 +32,6 @@ import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl;
 import org.apache.commons.beanutils.PropertyUtils;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.hive.service.cli.thrift.TOperationHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,9 +122,11 @@ public class Aggregator {
   }
 
   public Job readATSJob(Job viewJob) throws ItemNotFound {
-    TOperationHandle operationHandle = operationHandleResourceManager.getHandleForJob(viewJob).toTOperationHandle();
+    //TOperationHandle operationHandle = operationHandleResourceManager.getHandleForJob(viewJob).toTOperationHandle();
 
-    String hexGuid = Hex.encodeHexString(operationHandle.getOperationId().getGuid());
+    String hexGuid = Hex.encodeHexString(null /*operationHandle.getOperationId().getGuid()*/);
+    //TODO: New implementation
+
     HiveQueryId atsHiveQuery = ats.getHiveQueryIdByOperationId(hexStringToUrlSafeBase64(hexGuid));
 
     TezDagId atsTezDag = getTezDagFromHiveQueryId(atsHiveQuery);

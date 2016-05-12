@@ -20,28 +20,41 @@ package org.apache.ambari.view.hive.resources.jobs;
 
 import org.apache.ambari.view.ViewResourceHandler;
 import org.apache.ambari.view.hive.BaseService;
-import org.apache.ambari.view.hive.backgroundjobs.BackgroundJobController;
-import org.apache.ambari.view.hive.client.*;
+import org.apache.ambari.view.hive.client.HiveAuthCredentials;
+import org.apache.ambari.view.hive.client.HiveClientException;
+import org.apache.ambari.view.hive.client.UserLocalHiveAuthCredentials;
 import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
 import org.apache.ambari.view.hive.resources.jobs.atsJobs.IATSParser;
-import org.apache.ambari.view.hive.resources.jobs.viewJobs.*;
-import org.apache.ambari.view.hive.utils.*;
+import org.apache.ambari.view.hive.resources.jobs.viewJobs.Job;
+import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobController;
+import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl;
+import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobResourceManager;
+import org.apache.ambari.view.hive.utils.NotFoundFormattedException;
+import org.apache.ambari.view.hive.utils.ServiceFormattedException;
+import org.apache.ambari.view.hive.utils.SharedObjectsFactory;
 import org.apache.commons.beanutils.PropertyUtils;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.*;
-import javax.ws.rs.core.*;
-import java.io.*;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 import java.lang.reflect.InvocationTargetException;
-import java.util.*;
-import java.util.concurrent.Callable;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Servlet for queries
@@ -60,7 +73,7 @@ public class JobService extends BaseService {
 
   private JobResourceManager resourceManager;
   private IOperationHandleResourceManager opHandleResourceManager;
-  private UserLocalConnection connectionLocal = new UserLocalConnection();
+  //private UserLocalConnection connectionLocal = new UserLocalConnection();
 
   protected final static Logger LOG =
       LoggerFactory.getLogger(JobService.class);
@@ -143,7 +156,7 @@ public class JobService extends BaseService {
                                 @QueryParam("fileName") String fileName,
                                 @QueryParam("columns") final String requestedColumns) {
     try {
-      JobController jobController = getResourceManager().readController(jobId);
+      /*JobController jobController = getResourceManager().readController(jobId);
       final Cursor resultSet = jobController.getResults();
       resultSet.selectColumns(requestedColumns);
 
@@ -176,12 +189,15 @@ public class JobService extends BaseService {
 
       return Response.ok(stream).
           header("Content-Disposition", String.format("attachment; filename=\"%s\"", fileName)).
-          build();
+          build();*/
+      return null;
+
+      //TODO: New implementation
     } catch (WebApplicationException ex) {
       throw ex;
-    } catch (ItemNotFound itemNotFound) {
+    } /*catch (ItemNotFound itemNotFound) {
       throw new NotFoundFormattedException(itemNotFound.getMessage(), itemNotFound);
-    } catch (Exception ex) {
+    }*/ catch (Exception ex) {
       throw new ServiceFormattedException(ex.getMessage(), ex);
     }
   }
@@ -198,7 +214,8 @@ public class JobService extends BaseService {
                                    @QueryParam("stop") final String stop,
                                    @QueryParam("columns") final String requestedColumns,
                                    @Context HttpServletResponse response) {
-    try {
+    /*try {
+
       final JobController jobController = getResourceManager().readController(jobId);
 
       String backgroundJobId = "csv" + String.valueOf(jobController.getJob().getId());
@@ -256,7 +273,10 @@ public class JobService extends BaseService {
       throw new NotFoundFormattedException(itemNotFound.getMessage(), itemNotFound);
     } catch (Exception ex) {
       throw new ServiceFormattedException(ex.getMessage(), ex);
-    }
+    }*/
+      return null;
+
+    //TODO: New implementation
   }
 
 
@@ -266,7 +286,10 @@ public class JobService extends BaseService {
   @Produces(MediaType.APPLICATION_JSON)
   public Response fetchJobStatus(@PathParam("jobId") String jobId) throws ItemNotFound, HiveClientException, NoOperationStatusSetException {
     JobController jobController = getResourceManager().readController(jobId);
-    String jobStatus = jobController.getStatus().status;
+    //String jobStatus = jobController.getStatus().status;
+    String jobStatus = "";
+    //TODO: New implementation
+
     LOG.info("jobStatus : {} for jobId : {}",jobStatus, jobId);
 
     JSONObject jsonObject = new JSONObject();
@@ -290,19 +313,19 @@ public class JobService extends BaseService {
                              @QueryParam("columns") final String requestedColumns) {
     try {
       final JobController jobController = getResourceManager().readController(jobId);
-      LOG.info("jobController.getStatus().status : " + jobController.getStatus().status + " for job : " + jobController.getJob().getId());
+      /*LOG.info("jobController.getStatus().status : " + jobController.getStatus().status + " for job : " + jobController.getJob().getId());
       if(jobController.getStatus().status.equals(Job.JOB_STATE_INITIALIZED)
          || jobController.getStatus().status.equals(Job.JOB_STATE_PENDING)
          || jobController.getStatus().status.equals(Job.JOB_STATE_RUNNING)
          || jobController.getStatus().status.equals(Job.JOB_STATE_UNKNOWN)){
 
          return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Retry-After","1").build();
-      }
+      }*/
       if (!jobController.hasResults()) {
         return ResultsPaginationController.emptyResponse().build();
       }
 
-      return ResultsPaginationController.getInstance(context)
+      /*return ResultsPaginationController.getInstance(context)
            .request(jobId, searchId, true, fromBeginning, count, format,
                new Callable<Cursor>() {
                  @Override
@@ -311,7 +334,10 @@ public class JobService extends BaseService {
                    cursor.selectColumns(requestedColumns);
                    return cursor;
                  }
-               }).build();
+               }).build();*/
+      return null;
+
+      //TODO: New implementation
     } catch (WebApplicationException ex) {
       throw ex;
     } catch (ItemNotFound itemNotFound) {
@@ -458,8 +484,8 @@ public class JobService extends BaseService {
       authCredentials.setPassword(request.password);
       new UserLocalHiveAuthCredentials().set(authCredentials, context);
 
-      connectionLocal.remove(context);  // force reconnect on next get
-      connectionLocal.get(context);
+      //connectionLocal.remove(context);  // force reconnect on next get
+      //connectionLocal.get(context);
       return Response.ok().status(200).build();
     } catch (WebApplicationException ex) {
       throw ex;
@@ -476,7 +502,7 @@ public class JobService extends BaseService {
   public Response removePassword() {
     try {
       new UserLocalHiveAuthCredentials().remove(context);
-      connectionLocal.remove(context);  // force reconnect on next get
+      //connectionLocal.remove(context);  // force reconnect on next get
       return Response.ok().status(200).build();
     } catch (WebApplicationException ex) {
       throw ex;
@@ -493,8 +519,8 @@ public class JobService extends BaseService {
   @Path("sessions/{sessionTag}")
   public Response invalidateSession(@PathParam("sessionTag") String sessionTag) {
     try {
-      Connection connection = connectionLocal.get(context);
-      connection.invalidateSessionByTag(sessionTag);
+      //Connection connection = connectionLocal.get(context);
+      //connection.invalidateSessionByTag(sessionTag);
       return Response.ok().build();
     } catch (WebApplicationException ex) {
       throw ex;
@@ -511,16 +537,18 @@ public class JobService extends BaseService {
   @Produces(MediaType.APPLICATION_JSON)
   public Response sessionStatus(@PathParam("sessionTag") String sessionTag) {
     try {
-      Connection connection = connectionLocal.get(context);
+      //Connection connection = connectionLocal.get(context);
 
       JSONObject session = new JSONObject();
       session.put("sessionTag", sessionTag);
       try {
-        connection.getSessionByTag(sessionTag);
+        //connection.getSessionByTag(sessionTag);
         session.put("actual", true);
-      } catch (HiveClientException ex) {
+      } catch (Exception /*HiveClientException*/ ex) {
         session.put("actual", false);
       }
+
+      //TODO: New implementation
 
       JSONObject status = new JSONObject();
       status.put("session", session);

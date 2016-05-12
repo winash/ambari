@@ -21,7 +21,6 @@ package org.apache.ambari.view.hive.resources.jobs;
 import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
 import org.apache.ambari.view.hive.resources.IResourceManager;
 import org.apache.ambari.view.hive.resources.jobs.viewJobs.Job;
-import org.apache.hive.service.cli.thrift.TOperationHandle;
 
 import java.util.List;
 
@@ -32,7 +31,7 @@ public interface IOperationHandleResourceManager extends IResourceManager<Stored
 
   Job getJobByHandle(StoredOperationHandle handle) throws ItemNotFound;
 
-  void putHandleForJob(TOperationHandle h, Job job);
+  //void putHandleForJob(TOperationHandle h, Job job);
 
   boolean containsHandleForJob(Job job);
 

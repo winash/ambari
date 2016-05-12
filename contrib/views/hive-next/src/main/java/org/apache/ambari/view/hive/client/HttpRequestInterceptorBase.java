@@ -51,7 +51,7 @@ public abstract class HttpRequestInterceptorBase implements HttpRequestIntercept
   @Override
   public void process(HttpRequest httpRequest, HttpContext httpContext)
     throws HttpException, IOException {
-    try {
+    /*try {
       // If cookie based authentication is allowed, generate ticket only when necessary.
       // The necessary condition is either when there are no server side cookies in the
       // cookiestore which can be send back or when the server returns a 401 error code
@@ -83,6 +83,6 @@ public abstract class HttpRequestInterceptorBase implements HttpRequestIntercept
       }
     } catch (Exception e) {
       throw new HttpException(e.getMessage(), e);
-    }
+    }*/
   }
 }

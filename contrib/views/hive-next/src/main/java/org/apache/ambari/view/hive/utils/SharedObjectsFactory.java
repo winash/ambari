@@ -19,11 +19,9 @@
 package org.apache.ambari.view.hive.utils;
 
 import org.apache.ambari.view.ViewContext;
-import org.apache.ambari.view.hive.client.Connection;
 import org.apache.ambari.view.hive.persistence.IStorageFactory;
 import org.apache.ambari.view.hive.persistence.Storage;
 import org.apache.ambari.view.hive.persistence.utils.StorageFactory;
-import org.apache.ambari.view.hive.resources.jobs.OperationHandleControllerFactory;
 import org.apache.ambari.view.hive.resources.jobs.atsJobs.ATSParser;
 import org.apache.ambari.view.hive.resources.jobs.atsJobs.ATSParserFactory;
 import org.apache.ambari.view.hive.resources.jobs.rm.RMParser;
@@ -65,7 +63,7 @@ public class SharedObjectsFactory implements IStorageFactory {
 
     synchronized (localObjects) {
       if (localObjects.size() == 0) {
-        localObjects.put(OperationHandleControllerFactory.class, new ConcurrentHashMap<String, Object>());
+        //localObjects.put(OperationHandleControllerFactory.class, new ConcurrentHashMap<String, Object>());
         localObjects.put(Storage.class, new ConcurrentHashMap<String, Object>());
         localObjects.put(IJobControllerFactory.class, new ConcurrentHashMap<String, Object>());
         localObjects.put(ATSParser.class, new ConcurrentHashMap<String, Object>());
@@ -78,11 +76,11 @@ public class SharedObjectsFactory implements IStorageFactory {
 
   // =============================
 
-  public OperationHandleControllerFactory getOperationHandleControllerFactory() {
+  /*public OperationHandleControllerFactory getOperationHandleControllerFactory() {
     if (!localObjects.get(OperationHandleControllerFactory.class).containsKey(getTagName()))
       localObjects.get(OperationHandleControllerFactory.class).put(getTagName(), new OperationHandleControllerFactory(context, this));
     return (OperationHandleControllerFactory) localObjects.get(OperationHandleControllerFactory.class).get(getTagName());
-  }
+  }*/
 
   // =============================
   @Override

@@ -18,15 +18,15 @@
 
 package org.apache.ambari.view.hive.resources.jobs.viewJobs;
 
-import org.apache.ambari.view.hive.client.Cursor;
 import org.apache.ambari.view.hive.client.HiveClientException;
 import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
 import org.apache.ambari.view.hive.resources.jobs.NoOperationStatusSetException;
-import org.apache.ambari.view.hive.resources.jobs.OperationHandleController;
 
 public interface JobController {
 
-  OperationHandleController.OperationStatus getStatus() throws ItemNotFound, HiveClientException, NoOperationStatusSetException;
+  //OperationHandleController.OperationStatus getStatus() throws ItemNotFound, HiveClientException, NoOperationStatusSetException;
+
+  //TODO: New implementation
 
   void submit();
 
@@ -40,7 +40,10 @@ public interface JobController {
    */
   Job getJobPOJO();
 
-  Cursor getResults() throws ItemNotFound;
+  //Cursor getResults() throws ItemNotFound;
+
+  //TODO: New implementation
+
   boolean hasResults() throws ItemNotFound;
 
   void afterCreation();
