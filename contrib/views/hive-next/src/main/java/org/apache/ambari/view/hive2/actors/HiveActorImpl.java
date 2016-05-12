@@ -33,7 +33,9 @@ public class HiveActorImpl implements HiveActor {
         // at this point we should have a hive connection, and an underlying JDBC
         // javax.sql hiveConnection
         Optional<Connection> connection = this.connection.get().getConnection();
-        // Do something
+        //
+        Connection sqlConnection = connection.get();
+
 
 
     }
