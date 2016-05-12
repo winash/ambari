@@ -2,6 +2,8 @@ package org.apache.ambari.view.hive2.actors;
 
 import org.apache.ambari.view.hive2.internal.HiveTask;
 
+import java.util.UUID;
+
 public class Task {
 
 
@@ -55,6 +57,6 @@ public class Task {
     }
 
     public String taskAsString() {
-        return id + ":" + user + ":" + instance;
+        return UUID.randomUUID().toString() +":"+id + ":" + user + ":" + instance;
     }
 }
