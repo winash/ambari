@@ -1,6 +1,7 @@
 package org.apache.ambari.view.hive2.internal;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -22,6 +23,7 @@ public class HiveConnection implements Connectable {
 
     @Override
     public void connect() throws ConnectionException {
+        Preconditions.checkNotNull(connectionProps,"Connection properties have not been set");
         try {
             Class.forName(DRIVER_NAME);
         } catch (ClassNotFoundException e) {

@@ -41,7 +41,7 @@ public class HiveTaskRouterImpl implements HiveTaskRouter {
                         new TypedProps<>(HiveActor.class,
                                 new Creator<HiveActor>() {
                                     public HiveActor create() {
-                                        return new HiveActorImpl();
+                                        return new HiveActorImpl(actorSystem);
                                     }
                                 }),
                         key.taskAsString());

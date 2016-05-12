@@ -12,4 +12,15 @@ public interface HiveActor {
 
     void closeConnection();
 
+    /**
+     * Actor lifecycle
+     */
+    enum Status {
+        DISCONNECTED,
+        CONNECTED,
+        EXECUTING,
+        DONE,
+        IDLE
+    }
+
 }
