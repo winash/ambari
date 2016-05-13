@@ -6,7 +6,7 @@ public class HiveTaskMessage implements HiveTask {
     private String instance;
     private ConnectionProperties connectionProps;
     private HiveQuery.HiveQueries queries;
-    private Connectable connectable = new HiveConnection();
+    //private Connectable connectable = new HiveConnectionWrapper(connectMessage);
 
 
     public void setConnectionProps(ConnectionProperties connectionProps) {
@@ -26,9 +26,9 @@ public class HiveTaskMessage implements HiveTask {
     }
 
 
-    public void setConnectable(Connectable connectable) {
+    /*public void setConnectable(Connectable connectable) {
         this.connectable = connectable;
-    }
+    }*/
 
     /**
      * The task id for this task
@@ -65,11 +65,11 @@ public class HiveTaskMessage implements HiveTask {
      *
      * @return
      */
-    @Override
+    /*@Override
     public Connectable getConnectionClass() {
         return connectable;
     }
-
+*/
     /**
      * Connection properties pulled from the view context and request
      *

@@ -25,7 +25,7 @@ public interface HiveTask {
      * @return
      */
 
-    Connectable getConnectionClass();
+    //Connectable getConnectionClass();
 
     ConnectionProperties getConnectionProperties();
 

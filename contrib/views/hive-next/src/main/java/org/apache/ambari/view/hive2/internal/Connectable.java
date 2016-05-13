@@ -1,8 +1,7 @@
 package org.apache.ambari.view.hive2.internal;
 
 import com.google.common.base.Optional;
-
-import java.sql.Connection;
+import org.apache.hive.jdbc.HiveConnection;
 
 /**
  * Life cycle management for java.sql.Connection
@@ -10,15 +9,10 @@ import java.sql.Connection;
 public interface Connectable  {
 
     /**
-     * Set connection properties
-     * @param properties
-     */
-    void setProperties(ConnectionProperties properties);
-    /**
      * Get the underlying connection
      * @return an optional wrapping the connection
      */
-    Optional<Connection> getConnection();
+    Optional<HiveConnection> getConnection();
 
     /**
      * Check if the connection is open
