@@ -2,12 +2,9 @@ package org.apache.ambari.view.hive2;
 
 
 import akka.actor.ActorSystem;
-import akka.actor.TypedActor;
-import akka.actor.TypedProps;
-import akka.japi.Creator;
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.apache.ambari.view.hive2.actors.HiveTaskRouter;
-import org.apache.ambari.view.hive2.actors.HiveTaskRouterImpl;
+import org.apache.ambari.view.ViewContext;
 
 @Singleton
 /**
@@ -25,24 +22,13 @@ public class HiveActorSystem {
 
     }
 
-    private HiveTaskRouter hiveTaskRouter;
+    @Inject
+    ViewContext viewContext;
+
 
     public HiveActorSystem(){
-        // Set up all the actors and start the system
-          hiveTaskRouter = TypedActor.get(system).typedActorOf(
-                  new TypedProps<>(HiveTaskRouter.class,
-                          new Creator<HiveTaskRouter>() {
-                              public HiveTaskRouter create() {
-                                  return new HiveTaskRouterImpl(system);
-                              }
-                          }),
-                        "name");
 
 
     }
 
-
-    public HiveTaskRouter getRouter() {
-        return hiveTaskRouter;
-    }
 }

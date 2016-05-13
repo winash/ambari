@@ -14,7 +14,6 @@ import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.InactivityCheck;
 import org.apache.ambari.view.hive2.actor.message.TerminateInactivityCheck;
-import org.apache.ambari.view.hive2.actors.HiveActor;
 import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
 import org.apache.ambari.view.hive2.internal.Connectable;
 import org.apache.ambari.view.hive2.internal.ConnectionException;
@@ -64,7 +63,6 @@ public class JdbcConnector extends UntypedActor {
   private Cancellable terminateActorScheduler;
 
   private Connectable connectable = null;
-  private HiveActor.Status status = HiveActor.Status.IDLE;
   private final ConnectionDelegate connectionDelegate;
   private final ActorRef parent;
 
@@ -110,7 +108,7 @@ public class JdbcConnector extends UntypedActor {
         connectable.connect();
       }
     } catch (ConnectionException e) {
-      status = HiveActor.Status.DISCONNECTED;
+
     }
 
     this.terminateActorScheduler = system.scheduler().schedule(
