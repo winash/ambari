@@ -57,7 +57,7 @@ public class Connect {
     builder.append("jdbc:hive2://")
       .append(host)
       .append(":")
-      .append(port);
+      .append(port).append("/");
 
     if (!(authParams == null || authParams.isEmpty())) {
       builder.append(";");
@@ -72,7 +72,7 @@ public class Connect {
       .transform(new Function<Map.Entry<String,String>, String>() {
         @Override
         public String apply(Map.Entry<String, String> entry) {
-          return entry.getKey() + "=" + entry.getKey();
+          return entry.getKey() + "=" + entry.getValue();
         }
       }).toList();
 

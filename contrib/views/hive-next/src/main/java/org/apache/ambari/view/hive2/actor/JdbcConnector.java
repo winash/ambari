@@ -4,13 +4,16 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Cancellable;
 import akka.actor.PoisonPill;
+import akka.actor.Props;
 import akka.actor.UntypedActor;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
+import org.apache.ambari.view.hive2.HiveJdbcConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
+import org.apache.ambari.view.hive2.actor.message.ExtractResultSet;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.InactivityCheck;
 import org.apache.ambari.view.hive2.actor.message.TerminateInactivityCheck;
@@ -18,6 +21,7 @@ import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
 import org.apache.ambari.view.hive2.internal.Connectable;
 import org.apache.ambari.view.hive2.internal.ConnectionException;
 import org.apache.ambari.view.hive2.internal.HiveConnectionWrapper;
+import org.apache.ambari.view.hive2.internal.HiveResult;
 import org.apache.hive.jdbc.HiveConnection;
 import scala.concurrent.duration.Duration;
 
@@ -95,11 +99,16 @@ public class JdbcConnector extends UntypedActor {
     if (message instanceof TerminateInactivityCheck) {
       checkTerminationInactivity();
     }
+
+    if (message instanceof HiveResult) {
+      System.out.println((HiveResult) message);;
+    }
+
   }
 
   private void connect(Connect message) {
     // check the connectable
-    if (connectable != null) {
+    if (connectable == null) {
       connectable = new HiveConnectionWrapper(message.getJdbcUrl(), message.getUsername(), message.getPassword());
     }
     // make the connectable to Hive
@@ -108,7 +117,7 @@ public class JdbcConnector extends UntypedActor {
         connectable.connect();
       }
     } catch (ConnectionException e) {
-
+        //TODO: Terminate the actor immedeatly
     }
 
     this.terminateActorScheduler = system.scheduler().schedule(
@@ -126,14 +135,28 @@ public class JdbcConnector extends UntypedActor {
     if (!connectionOptional.isPresent()) {
       throw new NotConnectedException("Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive");
     }
-    Optional<ResultSet> resultSetOptional = connectionDelegate.execute(connectionOptional.get(), message);
+    try {
 
-    if (resultSetOptional.isPresent()) {
-      // Start a sub-actor to fetch the resultset Information
-      // Start a actor to query ATS
-      // Start a actor to query log
-    } else {
-      // Write the job completion status in DB
+      Optional<ResultSet> resultSetOptional = connectionDelegate.execute(connectionOptional.get(), message);
+      // There should be a result set, which either has a result set, or an empty value
+      // for operations which do not return anything
+      ActorRef resultAggregator = getContext().actorOf(
+              Props.create(ResultSetExtractor.class, viewContext, system, self()),
+              username + ":" + jobId);
+
+      if (resultSetOptional.isPresent()) {
+        // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
+        resultAggregator.tell(new ExtractResultSet(resultSetOptional.get()),self());
+        // Start a actor to query ATS
+        // Start a actor to query log
+      } else {
+        // Case when this is an Update/query with no results
+        // Wait for operation to complete and add results;
+
+      }
+
+    } catch (SQLException e) {
+      //TODO: HandleExceptions,
     }
 
     // Start Inactivity timer to close the statement

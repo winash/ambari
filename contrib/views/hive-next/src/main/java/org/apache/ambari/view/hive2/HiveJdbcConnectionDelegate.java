@@ -9,16 +9,36 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-/**
- * Created by dbhowmick on 5/13/16.
- */
 public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
-  private HiveStatement currentStatement;
+
   private ResultSet currentResultSet;
+  private HiveStatement currentStatement;
 
   @Override
-  public Optional<ResultSet> execute(HiveConnection connection, ExecuteJob job) {
-    return null;
+  public Optional<ResultSet> execute(HiveConnection connection, ExecuteJob job) throws SQLException {
+
+    try {
+      Statement statement = connection.createStatement();
+
+      for (String syncStatement : job.getSyncStatements()) {
+        // we don't care about the result
+        // fail all if one fails
+        statement.execute(syncStatement);
+      }
+
+      HiveStatement hiveStatement = (HiveStatement) statement;
+      boolean result = hiveStatement.executeAsync(job.getAsyncStatement());
+      if(result){
+        // query has a result set
+        return Optional.of(hiveStatement.getResultSet());
+
+      }
+      return Optional.absent();
+
+    } catch (SQLException e) {
+      throw e;
+
+    }
   }
 
   @Override
