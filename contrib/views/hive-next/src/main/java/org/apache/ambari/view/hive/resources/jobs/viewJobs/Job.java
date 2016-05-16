@@ -120,4 +120,12 @@ public interface Job extends Serializable,Indexed,PersonalResource {
   String getGlobalSettings();
 
   void setGlobalSettings(String globalSettings);
+
+  String getGuid();
+
+  void setGuid(String guid);
+
+  String getErrorFile();
+
+  void setErrorFile(String errorFile);
 }

@@ -8,21 +8,26 @@ import akka.actor.Props;
 import akka.actor.UntypedActor;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive.persistence.Storage;
+import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
+import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
-import org.apache.ambari.view.hive2.HiveJdbcConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
 import org.apache.ambari.view.hive2.actor.message.ExtractResultSet;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.InactivityCheck;
+import org.apache.ambari.view.hive2.actor.message.StartLogAggregation;
 import org.apache.ambari.view.hive2.actor.message.TerminateInactivityCheck;
 import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
 import org.apache.ambari.view.hive2.internal.Connectable;
 import org.apache.ambari.view.hive2.internal.ConnectionException;
 import org.apache.ambari.view.hive2.internal.HiveConnectionWrapper;
 import org.apache.ambari.view.hive2.internal.HiveResult;
+import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveConnection;
+import org.apache.hive.jdbc.HiveStatement;
 import scala.concurrent.duration.Duration;
 
 import java.sql.ResultSet;
@@ -47,6 +52,7 @@ public class JdbcConnector extends UntypedActor {
 
   private final ViewContext viewContext;
   private final ActorSystem system;
+  private final Storage storage;
 
   /**
    * Keeps track of the timestamp when the last activity has happened. This is
@@ -69,16 +75,20 @@ public class JdbcConnector extends UntypedActor {
   private Connectable connectable = null;
   private final ConnectionDelegate connectionDelegate;
   private final ActorRef parent;
+  private final HdfsApi hdfsApi;
 
   private String username;
   private String jobId;
 
 
-  public JdbcConnector(ViewContext viewContext, ActorSystem system, ActorRef parent, ConnectionDelegate connectionDelegate) {
+  public JdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent,
+                       ConnectionDelegate connectionDelegate, Storage storage) {
     this.viewContext = viewContext;
+    this.hdfsApi = hdfsApi;
     this.system = system;
     this.parent = parent;
     this.connectionDelegate = connectionDelegate;
+    this.storage = storage;
     this.lastActivityTimestamp = System.currentTimeMillis();
   }
 
@@ -144,15 +154,23 @@ public class JdbcConnector extends UntypedActor {
               Props.create(ResultSetExtractor.class, viewContext, system, self()),
               username + ":" + jobId);
 
+      ActorRef logAggregator = getContext().actorOf(
+        Props.create(LogAggregator.class, system, hdfsApi, connectionDelegate.getCurrentStatement(), message.getLogFile())
+      );
+
       if (resultSetOptional.isPresent()) {
         // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
         resultAggregator.tell(new ExtractResultSet(resultSetOptional.get()),self());
         // Start a actor to query ATS
-        // Start a actor to query log
       } else {
         // Case when this is an Update/query with no results
         // Wait for operation to complete and add results;
-
+      }
+      // Start a actor to query log
+      logAggregator.tell(new StartLogAggregation(), self());
+      Optional<HiveStatement> statementOptional = connectionDelegate.getCurrentStatement();
+      if(statementOptional.isPresent()) {
+        updateGuidInJob(jobId, statementOptional.get());
       }
 
     } catch (SQLException e) {
@@ -163,6 +181,18 @@ public class JdbcConnector extends UntypedActor {
     this.inactivityScheduler = system.scheduler().schedule(
       Duration.Zero(), Duration.create(15 * 1000, TimeUnit.MILLISECONDS),
       this.self(), new InactivityCheck(), system.dispatcher(), null);
+  }
+
+  private void updateGuidInJob(String jobId, HiveStatement statement) {
+    String yarnAtsGuid = statement.getYarnATSGuid();
+    try {
+      JobImpl job = storage.load(JobImpl.class, jobId);
+      job.setGuid(yarnAtsGuid);
+      storage.store(JobImpl.class, job);
+    } catch (ItemNotFound itemNotFound) {
+      // Cannot do anything if the job is not present
+    }
+
   }
 
   private void checkInactivity() {

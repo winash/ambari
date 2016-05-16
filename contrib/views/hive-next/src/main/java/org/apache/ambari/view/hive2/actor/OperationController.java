@@ -6,12 +6,16 @@ import akka.actor.Props;
 import akka.actor.UntypedActor;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive.persistence.Storage;
 import org.apache.ambari.view.hive2.HiveJdbcConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.Job;
 import org.apache.ambari.view.hive2.actor.message.JobRejected;
 import org.apache.ambari.view.hive2.actor.message.JobSubmitted;
+import org.apache.ambari.view.utils.hdfs.HdfsApi;
+import org.apache.ambari.view.utils.hdfs.HdfsApiException;
+import org.apache.ambari.view.utils.hdfs.HdfsUtil;
 import org.apache.commons.collections4.map.HashedMap;
 
 import java.util.HashMap;
@@ -75,9 +79,20 @@ public class OperationController extends UntypedActor {
     }
 
     if (subActor == null) {
+
+      HdfsApi hdfsApi;
+      try {
+        hdfsApi = getHdfsApi();
+      } catch (HdfsApiException e) {
+        // TODO: LOG Here
+        sender().tell(new JobRejected(username, jobId, "Failed to connect to HDFS."), ActorRef.noSender());
+        return;
+      }
+
       subActor = getContext().actorOf(
-        Props.create(JdbcConnector.class,viewContext, system, self(), new HiveJdbcConnectionDelegate()),
+        Props.create(JdbcConnector.class,viewContext, hdfsApi, system, self(), new HiveJdbcConnectionDelegate()),
         username + ":" + jobId);
+
     }
 
     if (busyConnections.containsKey(username)) {
@@ -98,6 +113,10 @@ public class OperationController extends UntypedActor {
     subActor.tell(job.executeJob, self());
 
     sender().tell(new JobSubmitted(username, jobId), ActorRef.noSender());
+  }
+
+  private HdfsApi getHdfsApi() throws HdfsApiException {
+    return HdfsUtil.connectToHDFSApi(viewContext);
   }
 
   private void destroyConnector(DestroyConnector message) {

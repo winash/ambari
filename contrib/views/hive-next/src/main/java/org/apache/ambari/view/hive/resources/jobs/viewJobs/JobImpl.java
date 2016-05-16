@@ -54,6 +54,9 @@ public class JobImpl implements Job {
 
   private String logFile;
   private String confFile;
+  private String errorFile;
+
+  private String guid = null;
 
   public JobImpl() {}
   public JobImpl(Map<String, Object> stringObjectMap) throws InvocationTargetException, IllegalAccessException {
@@ -295,5 +298,25 @@ public class JobImpl implements Job {
   @Override
   public void setGlobalSettings(String globalSettings) {
     this.globalSettings = globalSettings;
+  }
+
+  @Override
+  public String getGuid() {
+    return guid;
+  }
+
+  @Override
+  public void setGuid(String guid) {
+    this.guid = guid;
+  }
+
+  @Override
+  public String getErrorFile() {
+    return errorFile;
+  }
+
+  @Override
+  public void setErrorFile(String errorFile) {
+    this.errorFile = errorFile;
   }
 }
