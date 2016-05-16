@@ -1,18 +1,20 @@
 package org.apache.ambari.view.hive2.actor.message;
 
+import com.google.common.base.Optional;
+
 import java.sql.ResultSet;
 
-public class ExtractResultSet {
+public class AssignResultSet {
 
-    private ResultSet resultSet;
+    private Optional<ResultSet> resultSet;
 
-    public ExtractResultSet(ResultSet resultSet) {
+    public AssignResultSet(Optional<ResultSet> resultSet) {
         this.resultSet = resultSet;
     }
 
 
     public ResultSet getResultSet() {
-        return resultSet;
+        return resultSet.orNull();
     }
 
     @Override

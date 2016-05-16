@@ -12,10 +12,11 @@ import org.apache.ambari.view.hive.persistence.Storage;
 import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
 import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
+import org.apache.ambari.view.hive2.actor.message.AssignResultSet;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
-import org.apache.ambari.view.hive2.actor.message.ExtractResultSet;
+import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.InactivityCheck;
 import org.apache.ambari.view.hive2.actor.message.StartLogAggregation;
@@ -116,6 +117,8 @@ public class JdbcConnector extends UntypedActor {
 
   }
 
+
+
   private void connect(Connect message) {
     // check the connectable
     if (connectable == null) {
@@ -150,27 +153,34 @@ public class JdbcConnector extends UntypedActor {
       Optional<ResultSet> resultSetOptional = connectionDelegate.execute(connectionOptional.get(), message);
       // There should be a result set, which either has a result set, or an empty value
       // for operations which do not return anything
-      ActorRef resultAggregator = getContext().actorOf(
-              Props.create(ResultSetExtractor.class, viewContext, system, self()),
+      ActorRef resultHolder = getContext().actorOf(
+              Props.create(ResultHolder.class, viewContext, system,self(),parent,message),
               username + ":" + jobId);
 
       ActorRef logAggregator = getContext().actorOf(
-        Props.create(LogAggregator.class, system, hdfsApi, connectionDelegate.getCurrentStatement(), message.getLogFile())
+        Props.create(LogAggregator.class, system, hdfsApi, connectionDelegate.getCurrentStatement().get(), message.getLogFile())
       );
 
       if (resultSetOptional.isPresent()) {
         // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
-        resultAggregator.tell(new ExtractResultSet(resultSetOptional.get()),self());
+        // tell the result holder to assign the result set for further operations
+        resultHolder.tell(new AssignResultSet(resultSetOptional),self());
+
         // Start a actor to query ATS
       } else {
         // Case when this is an Update/query with no results
         // Wait for operation to complete and add results;
+        resultHolder.tell(new ExecuteQuery(connectionDelegate.getCurrentStatement()),self());
+
       }
       // Start a actor to query log
       logAggregator.tell(new StartLogAggregation(), self());
       Optional<HiveStatement> statementOptional = connectionDelegate.getCurrentStatement();
+
       if(statementOptional.isPresent()) {
-        updateGuidInJob(jobId, statementOptional.get());
+//        updateGuidInJob(jobId, statementOptional.get());
+        // Wait for the result in the Holder and update HDFS with the error log if any
+
       }
 
     } catch (SQLException e) {

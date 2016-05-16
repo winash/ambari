@@ -6,13 +6,17 @@ import akka.actor.Props;
 import akka.actor.UntypedActor;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
-import org.apache.ambari.view.hive.persistence.Storage;
+import org.apache.ambari.view.hive.persistence.DataStoreStorage;
 import org.apache.ambari.view.hive2.HiveJdbcConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
+import org.apache.ambari.view.hive2.actor.message.FetchResult;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.Job;
 import org.apache.ambari.view.hive2.actor.message.JobRejected;
 import org.apache.ambari.view.hive2.actor.message.JobSubmitted;
+import org.apache.ambari.view.hive2.actor.message.ResultReady;
+import org.apache.ambari.view.hive2.internal.Either;
+import org.apache.ambari.view.hive2.internal.ExecutionResult;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.ambari.view.utils.hdfs.HdfsApiException;
 import org.apache.ambari.view.utils.hdfs.HdfsUtil;
@@ -40,7 +44,7 @@ public class OperationController extends UntypedActor {
   /**
    * Store the connection per user/per job which are currently working.
    */
-  private final Map<String, Map<String, ActorRef>> busyConnections;
+  private final Map<String, Map<String, Container>> busyConnections;
 
   public OperationController(ViewContext viewContext, ActorSystem system) {
     this.viewContext = viewContext;
@@ -55,6 +59,19 @@ public class OperationController extends UntypedActor {
       sendJob((Job) message);
     }
 
+    if(message instanceof ResultReady){
+      updateResultContainer((ResultReady)message);
+    }
+
+    if(message instanceof GetResultHolder){
+      getResultHolder((GetResultHolder)message);
+    }
+
+    if(message instanceof FetchResult){
+      fetchResultActorRef((FetchResult)message);
+
+    }
+
     if (message instanceof FreeConnector) {
       freeConnector((FreeConnector) message);
     }
@@ -62,6 +79,27 @@ public class OperationController extends UntypedActor {
     if (message instanceof DestroyConnector) {
       destroyConnector((DestroyConnector) message);
     }
+  }
+
+  private void getResultHolder(GetResultHolder message) {
+    sender().tell(busyConnections.get("admin").get(message.jobId).result,self());
+  }
+
+  private void updateResultContainer(ResultReady message) {
+    // update the result
+    String jobId = message.getJobId();
+    String username = message.getUsername();
+    busyConnections.get(username).get(jobId).result = message.getResult();
+  }
+
+  private void fetchResultActorRef(FetchResult message) {
+    //Gets an Either actorRef,result implementation
+    // and send back to the caller
+    String username = message.getUsername();
+    String jobId = message.getJobId();
+    Either<ActorRef, ExecutionResult> result = busyConnections.get(username).get(jobId).result;
+    sender().tell(result,self());
+
   }
 
   private void sendJob(Job job) {
@@ -90,22 +128,22 @@ public class OperationController extends UntypedActor {
       }
 
       subActor = getContext().actorOf(
-        Props.create(JdbcConnector.class,viewContext, hdfsApi, system, self(), new HiveJdbcConnectionDelegate()),
+        Props.create(JdbcConnector.class,viewContext, hdfsApi, system, self(), new HiveJdbcConnectionDelegate(),new DataStoreStorage(viewContext)),
         username + ":" + jobId);
 
     }
 
     if (busyConnections.containsKey(username)) {
-      Map<String, ActorRef> actors = busyConnections.get(username);
+      Map<String, Container> actors = busyConnections.get(username);
       if(!actors.containsKey(jobId)) {
-        actors.put(jobId, subActor);
+        actors.put(jobId, new Container(subActor));
       } else {
         // Reject this as with the same jobId one connection is already in progress.
         sender().tell(new JobRejected(username, jobId, "Existing job in progress with same jobId."), ActorRef.noSender());
       }
     } else {
-      Map<String, ActorRef> actors = new HashMap<>();
-      actors.put(jobId, subActor);
+      Map<String, Container> actors = new HashMap<>();
+      actors.put(jobId, new Container(subActor));
       busyConnections.put(username, actors);
     }
 
@@ -135,9 +173,9 @@ public class OperationController extends UntypedActor {
   private Optional<ActorRef> removeFromBusy(String username, String jobId) {
     ActorRef ref = null;
     if (busyConnections.containsKey(username)) {
-      Map<String, ActorRef> actors = busyConnections.get(username);
+      Map<String, Container> actors = busyConnections.get(username);
       if(actors.containsKey(jobId)) {
-        ref = actors.get(jobId);
+        ref = actors.get(jobId).actorRef;
         actors.remove(jobId);
       }
     }
@@ -160,4 +198,19 @@ public class OperationController extends UntypedActor {
     Queue<ActorRef> actors = availableConnections.get(username);
     actors.remove(sender);
   }
+
+  private static class Container {
+
+    ActorRef actorRef;
+    Either<ActorRef,ExecutionResult> result = Either.none();
+
+    public Container(ActorRef actorRef) {
+      this.actorRef = actorRef;
+    }
+  }
+
+
+
 }
+
+

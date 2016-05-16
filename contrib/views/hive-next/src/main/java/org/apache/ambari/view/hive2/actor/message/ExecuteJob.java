@@ -22,6 +22,13 @@ public class ExecuteJob {
     this.logFile = logFile;
   }
 
+  public ExecuteJob(String jobId, String username,String[] statements) {
+    this.jobId = jobId;
+    this.statements = statements;
+    this.username = username;
+    logFile = null;
+  }
+
   public String getJobId() {
     return jobId;
   }

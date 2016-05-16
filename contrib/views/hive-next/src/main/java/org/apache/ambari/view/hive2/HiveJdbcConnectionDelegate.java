@@ -19,6 +19,7 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
 
     try {
       Statement statement = connection.createStatement();
+      currentStatement = (HiveStatement) statement;
 
       for (String syncStatement : job.getSyncStatements()) {
         // we don't care about the result
@@ -30,7 +31,10 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
       boolean result = hiveStatement.executeAsync(job.getAsyncStatement());
       if(result){
         // query has a result set
-        return Optional.of(hiveStatement.getResultSet());
+        ResultSet resultSet = hiveStatement.getResultSet();
+        currentResultSet = resultSet;
+        Optional<ResultSet> resultSetOptional = Optional.of(resultSet);
+        return resultSetOptional;
 
       }
       return Optional.absent();
