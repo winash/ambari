@@ -7,39 +7,31 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * Message to be sent when a statement has to be executed
+ * Created by dbhowmick on 5/17/16.
  */
-public class ExecuteJob {
-  private final String jobId;
+public class HiveJob {
+
   private final String username;
   private final String[] statements;
-  private final String logFile;
+  private final Type type;
 
-  public ExecuteJob(String jobId, String username, String[] statements, String logFile) {
-    this.jobId = jobId;
+  public HiveJob(Type type, String[] statements, String username) {
+    this.type = type;
     this.username = username;
     this.statements = statements;
-    this.logFile = logFile;
   }
 
-  public ExecuteJob(String jobId, String username,String[] statements) {
-    this.jobId = jobId;
-    this.statements = statements;
-    this.username = username;
-    logFile = null;
+  public String getUsername() {
+    return username;
   }
 
-  public String getJobId() {
-    return jobId;
-  }
-
-  public String[] getAllStatements() {
+  public String[] getStatements() {
     return statements;
   }
 
 
-  public String getLogFile() {
-    return logFile;
+  public Type getType() {
+    return type;
   }
 
   /**
@@ -63,7 +55,10 @@ public class ExecuteJob {
     return statements[statements.length - 1];
   }
 
-  public String getUsername() {
-    return username;
+
+  public enum Type {
+    SYNC,
+    ASYNC
   }
+
 }

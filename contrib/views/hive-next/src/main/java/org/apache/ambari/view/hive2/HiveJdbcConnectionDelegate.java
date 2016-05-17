@@ -1,7 +1,8 @@
 package org.apache.ambari.view.hive2;
 
 import com.google.common.base.Optional;
-import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
+import org.apache.ambari.view.hive2.actor.message.HiveJob;
+import org.apache.ambari.view.hive2.internal.HiveResult;
 import org.apache.hive.jdbc.HiveConnection;
 import org.apache.hive.jdbc.HiveStatement;
 
@@ -15,7 +16,7 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
   private HiveStatement currentStatement;
 
   @Override
-  public Optional<ResultSet> execute(HiveConnection connection, ExecuteJob job) throws SQLException {
+  public Optional<ResultSet> execute(HiveConnection connection, HiveJob job) throws SQLException {
 
     try {
       Statement statement = connection.createStatement();
@@ -29,7 +30,7 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
 
       HiveStatement hiveStatement = (HiveStatement) statement;
       boolean result = hiveStatement.executeAsync(job.getAsyncStatement());
-      if(result){
+      if (result) {
         // query has a result set
         ResultSet resultSet = hiveStatement.getResultSet();
         currentResultSet = resultSet;
@@ -45,6 +46,11 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
       throw e;
 
     }
+  }
+
+  @Override
+  public Optional<HiveResult> executeSync(HiveConnection connection, HiveJob job) throws SQLException {
+    return Optional.absent();
   }
 
   @Override

@@ -15,10 +15,12 @@ import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.AssignResultSet;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
-import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
+import org.apache.ambari.view.hive2.actor.message.ExecuteAsyncJob;
 import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
+import org.apache.ambari.view.hive2.actor.message.ExecuteSyncJob;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.InactivityCheck;
+import org.apache.ambari.view.hive2.actor.message.Job;
 import org.apache.ambari.view.hive2.actor.message.StartLogAggregation;
 import org.apache.ambari.view.hive2.actor.message.TerminateInactivityCheck;
 import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
@@ -80,6 +82,18 @@ public class JdbcConnector extends UntypedActor {
   // The result Holder assigned to this Connector
   private ActorRef resultHolder;
 
+  private String username;
+  private String jobId;
+
+  /**
+   * true if the actor is currently executing any job.
+   */
+  private boolean executing = false;
+
+  /**
+   * true if the currently executing job is async job.
+   */
+  private boolean async = true;
 
   public JdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent,
                        ConnectionDelegate connectionDelegate, Storage storage) {
@@ -95,11 +109,15 @@ public class JdbcConnector extends UntypedActor {
   @Override
   public void onReceive(Object message) throws Exception {
     if (message instanceof Connect) {
-      connect((Connect)message);
+      connect((Connect) message);
     }
 
-    if (message instanceof ExecuteJob) {
-      executeJob((ExecuteJob) message);
+    if (message instanceof ExecuteAsyncJob) {
+      executeJob((ExecuteAsyncJob) message);
+    }
+
+    if (message instanceof ExecuteSyncJob) {
+      executeSyncJob((ExecuteSyncJob) message);
     }
 
     if (message instanceof InactivityCheck) {
@@ -112,8 +130,6 @@ public class JdbcConnector extends UntypedActor {
 
   }
 
-
-
   private void connect(Connect message) {
     // check the connectable
     if (connectable == null) {
@@ -121,11 +137,11 @@ public class JdbcConnector extends UntypedActor {
     }
     // make the connectable to Hive
     try {
-      if(!connectable.isOpen()) {
+      if (!connectable.isOpen()) {
         connectable.connect();
       }
     } catch (ConnectionException e) {
-        //TODO: Terminate the actor immedeatly
+      //TODO: Terminate the actor immedeatly
     }
 
     this.terminateActorScheduler = system.scheduler().schedule(
@@ -134,18 +150,21 @@ public class JdbcConnector extends UntypedActor {
 
   }
 
-  private void executeJob(ExecuteJob message) {
+  private void executeJob(ExecuteAsyncJob message) {
     System.out.println("Executing job" + self());
     if (connectable == null) {
       throw new NotConnectedException("Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive");
     }
 
-    Optional<HiveConnection> connectionOptional  = connectable.getConnection();
+    Optional<HiveConnection> connectionOptional = connectable.getConnection();
     if (!connectionOptional.isPresent()) {
       throw new NotConnectedException("Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive");
     }
 
     try {
+
+      this.executing = true;
+      this.async = true;
 
       Optional<ResultSet> resultSetOptional = connectionDelegate.execute(connectionOptional.get(), message);
       Optional<HiveStatement> currentStatement = connectionDelegate.getCurrentStatement();
@@ -162,7 +181,7 @@ public class JdbcConnector extends UntypedActor {
       if (resultSetOptional.isPresent()) {
         // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
         // tell the result holder to assign the result set for further operations
-        resultHolder.tell(new AssignResultSet(resultSetOptional),self());
+        resultHolder.tell(new AssignResultSet(resultSetOptional), self());
 
         // Start a actor to query ATS
       } else {
@@ -175,7 +194,59 @@ public class JdbcConnector extends UntypedActor {
       logAggregator.tell(new StartLogAggregation(), self());
       Optional<HiveStatement> statementOptional = currentStatement;
 
-      if(statementOptional.isPresent()) {
+      if (statementOptional.isPresent()) {
+//        updateGuidInJob(jobId, statementOptional.get());
+        // Wait for the result in the Holder and update HDFS with the error log if any
+
+      }
+
+    } catch (SQLException e) {
+      //TODO: HandleExceptions,
+    }
+
+    // Start Inactivity timer to close the statement
+    this.inactivityScheduler = system.scheduler().schedule(
+      Duration.Zero(), Duration.create(15 * 1000, TimeUnit.MILLISECONDS),
+      this.self(), new InactivityCheck(), system.dispatcher(), null);
+  }
+
+  private void executeSyncJob(ExecuteSyncJob job) {
+    if (connectable == null) {
+      throw new NotConnectedException("Cannot execute sync job for user: " + job.getUsername() + ". Not connected to Hive");
+    }
+
+    Optional<HiveConnection> connectionOptional = connectable.getConnection();
+    if (!connectionOptional.isPresent()) {
+      throw new NotConnectedException("Cannot execute sync job for user: " + job.getUsername() + ". Not connected to Hive");
+    }
+
+    try {
+
+      this.executing = true;
+      this.async = false;
+
+      Optional<ResultSet> resultSetOptional = connectionDelegate.execute(connectionOptional.get(), job);
+      // There should be a result set, which either has a result set, or an empty value
+      // for operations which do not return anything
+      ActorRef resultHolder = getContext().actorOf(
+        Props.create(ResultHolder.class, viewContext, system, self(), parent, job),
+        username + ":" + Job.SYNC_JOB_MARKER);
+
+      if (resultSetOptional.isPresent()) {
+        // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
+        // tell the result holder to assign the result set for further operations
+        resultHolder.tell(new AssignResultSet(resultSetOptional), self());
+
+        // Start a actor to query ATS
+      } else {
+        // Case when this is an Update/query with no results
+        // Wait for operation to complete and add results;
+        resultHolder.tell(new ExecuteQuery(connectionDelegate.getCurrentStatement()), self());
+      }
+      // Start a actor to query log
+      Optional<HiveStatement> statementOptional = connectionDelegate.getCurrentStatement();
+
+      if (statementOptional.isPresent()) {
 //        updateGuidInJob(jobId, statementOptional.get());
         // Wait for the result in the Holder and update HDFS with the error log if any
 
@@ -191,7 +262,7 @@ public class JdbcConnector extends UntypedActor {
     // Start Inactivity timer to close the statement
     this.inactivityScheduler = system.scheduler().schedule(
       Duration.Zero(), Duration.create(15 * 1000, TimeUnit.MILLISECONDS),
-      this.self(), new InactivityCheck(message), system.dispatcher(), null);
+      this.self(), new InactivityCheck(), system.dispatcher(), null);
   }
 
   private void updateGuidInJob(String jobId, HiveStatement statement) {
@@ -224,14 +295,14 @@ public class JdbcConnector extends UntypedActor {
       resultHolder = null;
       // Tell the router actor to remove the reference from its cache
       // Tell the router actor to render this connectable actor as free.
-      parent.tell(new FreeConnector(message.getUserName(), message.getJobId()), this.self());
+      parent.tell(new FreeConnector(username, jobId), this.self());
       inactivityScheduler.cancel();
     }
   }
 
   private void checkTerminationInactivity(TerminateInactivityCheck message) {
     long current = System.currentTimeMillis();
-    if((current - lastActivityTimestamp) > MAX_TERMINATION_INACTIVITY_INTERVAL) {
+    if ((current - lastActivityTimestamp) > MAX_TERMINATION_INACTIVITY_INTERVAL) {
       // Stop all sub-actors if any currently live
       try {
         connectionDelegate.closeStatement();

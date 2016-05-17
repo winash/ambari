@@ -1,11 +1,20 @@
 package org.apache.ambari.view.hive2.actor.message;
 
 public class Job {
-  public final Connect connect;
-  public final ExecuteJob executeJob;
+  public final static String SYNC_JOB_MARKER = "SYSC";
+  private final Connect connect;
+  private final HiveJob job;
 
-  public Job(Connect connect, ExecuteJob executeJob) {
+  public Job(Connect connect, HiveJob job) {
     this.connect = connect;
-    this.executeJob = executeJob;
+    this.job = job;
+  }
+
+  public Connect getConnect() {
+    return connect;
+  }
+
+  public HiveJob getJob() {
+    return job;
   }
 }

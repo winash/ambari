@@ -10,7 +10,7 @@ import com.google.inject.Singleton;
 import org.apache.ambari.view.hive2.actor.GetResultHolder;
 import org.apache.ambari.view.hive2.actor.OperationController;
 import org.apache.ambari.view.hive2.actor.message.Connect;
-import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
+import org.apache.ambari.view.hive2.actor.message.ExecuteAsyncJob;
 import org.apache.ambari.view.hive2.actor.message.GetMoreResults;
 import org.apache.ambari.view.hive2.actor.message.Job;
 import org.apache.ambari.view.hive2.internal.Either;
@@ -55,38 +55,39 @@ public class HiveActorSystem {
         objectObjectHashMap.put("serviceDiscoveryMode","zooKeeper");
         objectObjectHashMap.put("zooKeeperNamespace","hiveserver2");
         Connect connect = new Connect("10","admin", "admin", "c6401.ambari.apache.org", 2181, objectObjectHashMap);
-        Job job = new Job(connect, new ExecuteJob("10","admin", new String[]{"select * from trucks_stage"}, logFile));
+        Job job = new Job(connect, new ExecuteAsyncJob("10","admin", new String[]{"select * from trucks_stage"}, logFile));
 
-        Job job2 = new Job(connect, new ExecuteJob("100","admin",
-                new String[]{"SELECT * FROM employee"}));
+        Job job2 = new Job(connect, new ExecuteAsyncJob("100","admin",
+                new String[]{"SELECT * FROM employee"}, logFile));
 
-        Job job3 = new Job(connect, new ExecuteJob("11","admin",
-                new String[]{"SELECT * FROM employee"}));
+        Job job3 = new Job(connect, new ExecuteAsyncJob("11","admin",
+                new String[]{"SELECT * FROM employee"}, logFile));
 //        Job job31 = new Job(connect, new ExecuteJob("12","admin",
 //                new String[]{"insert into employee values(100,'adasdasdasd',100000,'Delhi')"}));
-        Job job4 = new Job(connect, new ExecuteJob("13","admin",
-                new String[]{"SELECT * FROM employee"}));
-        Job job5 = new Job(connect, new ExecuteJob("14","admin",
-                new String[]{"SELECT * FROM employee"}));
-        Job job6 = new Job(connect, new ExecuteJob("15","admin",
-                new String[]{"SELECT * FROM employee"}));
-        Job job7 = new Job(connect, new ExecuteJob("16","admin",
-                new String[]{"SELECT * FROM employee"}));
-        Job job8 = new Job(connect, new ExecuteJob("17","admin",
-                new String[]{"SELECT * FROM employee"}));
-        Job job9 = new Job(connect, new ExecuteJob("18","admin",
-                new String[]{"SELECT * FROM employee"}));
-        Job job10 = new Job(connect, new ExecuteJob("19","admin",
-                new String[]{"SELECT * FROM employee"}));
-        Job job11 = new Job(connect, new ExecuteJob("20","admin",
-                new String[]{"SELECT * FROM employee"}));
-        Job job12 = new Job(connect, new ExecuteJob("21","admin",
-                new String[]{"SELECT * FROM employee"}));
+        Job job4 = new Job(connect, new ExecuteAsyncJob("13","admin",
+                new String[]{"SELECT * FROM employee"}, logFile));
+        Job job5 = new Job(connect, new ExecuteAsyncJob("14","admin",
+                new String[]{"SELECT * FROM employee"}, logFile));
+        Job job6 = new Job(connect, new ExecuteAsyncJob("15","admin",
+                new String[]{"SELECT * FROM employee"}, logFile));
+        Job job7 = new Job(connect, new ExecuteAsyncJob("16","admin",
+                new String[]{"SELECT * FROM employee"}, logFile));
+        Job job8 = new Job(connect, new ExecuteAsyncJob("17","admin",
+                new String[]{"SELECT * FROM employee"}, logFile));
+        Job job9 = new Job(connect, new ExecuteAsyncJob("18","admin",
+                new String[]{"SELECT * FROM employee"}, logFile));
+        Job job10 = new Job(connect, new ExecuteAsyncJob("19","admin",
+                new String[]{"SELECT * FROM employee"}, logFile));
+        Job job11 = new Job(connect, new ExecuteAsyncJob("20","admin",
+                new String[]{"SELECT * FROM employee"}, logFile));
+        Job job12 = new Job(connect, new ExecuteAsyncJob("21","admin",
+                new String[]{"SELECT * FROM employee"}, logFile));
 
 //        Job job5 = new Job(connect, new ExecuteJob("14","admin",
 //                new String[]{"insert into employee values(100,'terrrfdfsfdi',100000,'Delhi')"}));
 //        Job job6 = new Job(connect, new ExecuteJob("15","admin",
 //                new String[]{"insert into employee values(100,'sdfsdfsdff',100000,'Delhi')"}));
+
 
 
 

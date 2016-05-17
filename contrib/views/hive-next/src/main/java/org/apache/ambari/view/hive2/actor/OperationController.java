@@ -8,9 +8,13 @@ import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.persistence.DataStoreStorage;
 import org.apache.ambari.view.hive2.HiveJdbcConnectionDelegate;
+import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
+import org.apache.ambari.view.hive2.actor.message.ExecuteAsyncJob;
+import org.apache.ambari.view.hive2.actor.message.ExecuteSyncJob;
 import org.apache.ambari.view.hive2.actor.message.FetchResult;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
+import org.apache.ambari.view.hive2.actor.message.HiveJob;
 import org.apache.ambari.view.hive2.actor.message.Job;
 import org.apache.ambari.view.hive2.actor.message.JobRejected;
 import org.apache.ambari.view.hive2.actor.message.JobSubmitted;
@@ -21,10 +25,13 @@ import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.ambari.view.utils.hdfs.HdfsApiException;
 import org.apache.commons.collections4.map.HashedMap;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.UUID;
 
 /**
  * Router actor to control the operations. This delegates the operations to underlying child actors and
@@ -45,17 +52,29 @@ public class OperationController extends UntypedActor {
    */
   private final Map<String, Map<String, Container>> busyConnections;
 
+  /**
+   * Store the connection per user which will be used to execute sync jobs
+   * like fetching databases, tables etc.
+   */
+  private final Map<String, List<ActorRef>> syncBusyConnections;
+
   public OperationController(ViewContext viewContext, ActorSystem system) {
     this.viewContext = viewContext;
     this.system = system;
     this.availableConnections = new HashMap<>();
     this.busyConnections = new HashedMap<>();
+    this.syncBusyConnections = new HashMap<>();
   }
 
   @Override
   public void onReceive(Object message) throws Exception {
     if (message instanceof Job) {
-      sendJob((Job) message);
+      Job job = (Job) message;
+      if(job.getJob().getType() == HiveJob.Type.ASYNC) {
+        sendJob(job.getConnect(), (ExecuteAsyncJob)job.getJob());
+      } else if (job.getJob().getType() == HiveJob.Type.SYNC) {
+        sendSyncJob(job.getConnect(), (ExecuteSyncJob) job.getJob());
+      }
     }
 
     if(message instanceof ResultReady){
@@ -101,9 +120,9 @@ public class OperationController extends UntypedActor {
 
   }
 
-  private void sendJob(Job job) {
-    String username = job.connect.getUsername();
-    String jobId = job.executeJob.getJobId();
+  private void sendJob(Connect connect, ExecuteAsyncJob job) {
+    String username = connect.getUsername();
+    String jobId = job.getJobId();
     ActorRef subActor = null;
     // Check if there is available actors to process this
     if(availableConnections.containsKey(username)) {
@@ -128,7 +147,7 @@ public class OperationController extends UntypedActor {
 
       subActor = getContext().actorOf(
         Props.create(JdbcConnector.class,viewContext, hdfsApi, system, self(), new HiveJdbcConnectionDelegate(),new DataStoreStorage(viewContext)),
-        username + ":" + jobId + ":" + "jdbcConnector");
+        username + ":" + UUID.randomUUID().toString());
 
     }
 
@@ -146,10 +165,51 @@ public class OperationController extends UntypedActor {
       busyConnections.put(username, actors);
     }
 
-    subActor.tell(job.connect, self());
-    subActor.tell(job.executeJob, self());
+    subActor.tell(connect, self());
+    subActor.tell(job, self());
 
     sender().tell(new JobSubmitted(username, jobId), ActorRef.noSender());
+  }
+
+  private void sendSyncJob(Connect connect, ExecuteSyncJob job) {
+    String username = job.getUsername();
+    ActorRef subActor = null;
+    // Check if there is available actors to process this
+    if(availableConnections.containsKey(username)) {
+      Queue<ActorRef> availableActors = availableConnections.get(username);
+      if(availableActors.size() != 0) {
+        subActor = availableActors.poll();
+      }
+    } else {
+      availableConnections.put(username, new LinkedList<ActorRef>());
+    }
+
+    if (subActor == null) {
+      HdfsApi hdfsApi;
+      try {
+        hdfsApi = getHdfsApi();
+      } catch (HdfsApiException e) {
+        // TODO: LOG Here
+        sender().tell(new JobRejected(username, Job.SYNC_JOB_MARKER, "Failed to connect to HDFS."), ActorRef.noSender());
+        return;
+      }
+
+      subActor = getContext().actorOf(
+        Props.create(JdbcConnector.class,viewContext, hdfsApi, system, self(), new HiveJdbcConnectionDelegate(),new DataStoreStorage(viewContext)),
+        username + ":" + UUID.randomUUID().toString());
+    }
+
+    if (syncBusyConnections.containsKey(username)) {
+      List<ActorRef> actors = syncBusyConnections.get(username);
+      actors.add(subActor);
+    } else {
+      List<ActorRef> actors = new ArrayList<>();
+      actors.add(subActor);
+      syncBusyConnections.put(username, actors);
+    }
+
+    subActor.tell(connect, self());
+    subActor.tell(job, self());
   }
 
   private HdfsApi getHdfsApi() throws HdfsApiException {
