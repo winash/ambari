@@ -177,7 +177,6 @@ public class OperationController extends UntypedActor {
       if(actors.containsKey(jobId)) {
         ref = actors.get(jobId).actorRef;
         actors.remove(jobId);
-        System.out.println("removed");
       }
     }
     return Optional.fromNullable(ref);
@@ -190,7 +189,6 @@ public class OperationController extends UntypedActor {
 
     Queue<ActorRef> availableActors = availableConnections.get(username);
     availableActors.add(actor);
-    System.out.println("added");
   }
 
   private void removeFromAvailable(String username, ActorRef sender) {

@@ -19,8 +19,10 @@ public class Connect {
   private final String host;
   private final int port;
   private final Map<String, String> authParams;
+  private String jobId;
 
-  public Connect(String username, String password, String host, int port, Map<String, String> authParams) {
+  public Connect(String jobId,String username, String password, String host, int port, Map<String, String> authParams) {
+    this.jobId = jobId;
     this.username = username;
     this.password = password;
     this.host = host;
@@ -28,8 +30,8 @@ public class Connect {
     this.authParams = Collections.unmodifiableMap(authParams);
   }
 
-  public Connect(String username, String password, String host, int port) {
-    this(username, password, host, port, Maps.<String, String>newHashMap());
+  public Connect(String jobId,String username, String password, String host, int port) {
+    this(jobId,username, password, host, port, Maps.<String, String>newHashMap());
   }
 
   public String getUsername() {
@@ -88,5 +90,13 @@ public class Connect {
       ", port=" + port +
       ", authParams=" + authParams +
       '}';
+  }
+
+  public String getJobId() {
+    return jobId;
+  }
+
+  public void setJobId(String jobId) {
+    this.jobId = jobId;
   }
 }

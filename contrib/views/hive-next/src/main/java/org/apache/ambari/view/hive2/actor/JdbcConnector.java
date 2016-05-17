@@ -25,7 +25,6 @@ import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
 import org.apache.ambari.view.hive2.internal.Connectable;
 import org.apache.ambari.view.hive2.internal.ConnectionException;
 import org.apache.ambari.view.hive2.internal.HiveConnectionWrapper;
-import org.apache.ambari.view.hive2.internal.HiveResult;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveConnection;
 import org.apache.hive.jdbc.HiveStatement;
@@ -44,7 +43,7 @@ public class JdbcConnector extends UntypedActor {
   /**
    * Interval for maximum inactivity allowed
    */
-  private final static long MAX_INACTIVITY_INTERVAL = 1 * 20 * 1000;
+  private final static long MAX_INACTIVITY_INTERVAL = 1 * 10 * 1000;
 
   /**
    * Interval for maximum inactivity allowed before termination
@@ -78,8 +77,8 @@ public class JdbcConnector extends UntypedActor {
   private final ActorRef parent;
   private final HdfsApi hdfsApi;
 
-  private String username;
-  private String jobId;
+  // The result Holder assigned to this Connector
+  private ActorRef resultHolder;
 
 
   public JdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent,
@@ -108,7 +107,7 @@ public class JdbcConnector extends UntypedActor {
     }
 
     if (message instanceof TerminateInactivityCheck) {
-      checkTerminationInactivity();
+      checkTerminationInactivity((TerminateInactivityCheck)message);
     }
 
   }
@@ -131,7 +130,7 @@ public class JdbcConnector extends UntypedActor {
 
     this.terminateActorScheduler = system.scheduler().schedule(
       Duration.Zero(), Duration.create(60 * 1000, TimeUnit.MILLISECONDS),
-      this.getSelf(), new TerminateInactivityCheck(), system.dispatcher(), null);
+      this.getSelf(), new TerminateInactivityCheck(message), system.dispatcher(), null);
 
   }
 
@@ -152,12 +151,12 @@ public class JdbcConnector extends UntypedActor {
       Optional<HiveStatement> currentStatement = connectionDelegate.getCurrentStatement();
       // There should be a result set, which either has a result set, or an empty value
       // for operations which do not return anything
-      ActorRef resultHolder = getContext().actorOf(
+      resultHolder = getContext().actorOf(
               Props.create(ResultHolder.class, viewContext, system,self(),parent,message),
-              username + ":" + jobId + "-resultsHolder");
+              message.getUsername() + ":" + message.getJobId() + "-resultsHolder");
 
       ActorRef logAggregator = getContext().actorOf(
-        Props.create(LogAggregator.class, system, hdfsApi, currentStatement.get(), message.getLogFile()), username + ":" + jobId + "-logAggregator"
+        Props.create(LogAggregator.class, system, hdfsApi, currentStatement.get(), message.getLogFile()), message.getUsername() + ":" + message.getJobId() + "-logAggregator"
       );
 
       if (resultSetOptional.isPresent()) {
@@ -219,13 +218,18 @@ public class JdbcConnector extends UntypedActor {
       } catch (SQLException e) {
         // TODO: check this
       }
+      //Poison the Result holder
+      resultHolder.tell(PoisonPill.getInstance(), self());
+//      //nullify the reference
+      resultHolder = null;
+      // Tell the router actor to remove the reference from its cache
       // Tell the router actor to render this connectable actor as free.
       parent.tell(new FreeConnector(message.getUserName(), message.getJobId()), this.self());
       inactivityScheduler.cancel();
     }
   }
 
-  private void checkTerminationInactivity() {
+  private void checkTerminationInactivity(TerminateInactivityCheck message) {
     long current = System.currentTimeMillis();
     if((current - lastActivityTimestamp) > MAX_TERMINATION_INACTIVITY_INTERVAL) {
       // Stop all sub-actors if any currently live
@@ -235,8 +239,8 @@ public class JdbcConnector extends UntypedActor {
       } catch (SQLException e) {
         // TODO: check this
       }
-      // Tell the router actor to remove the reference from its cache
-      parent.tell(new DestroyConnector(username, jobId), this.self());
+
+      parent.tell(new DestroyConnector(message.getUserName(),message.getJobId()), this.self());
       self().tell(PoisonPill.getInstance(), ActorRef.noSender());
     }
   }
