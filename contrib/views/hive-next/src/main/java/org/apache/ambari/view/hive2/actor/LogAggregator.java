@@ -46,7 +46,7 @@ public class LogAggregator extends UntypedActor {
     }
 
     if (message instanceof GetMoreLogs) {
-      getMoreLogs();
+//      getMoreLogs();
     }
   }
 

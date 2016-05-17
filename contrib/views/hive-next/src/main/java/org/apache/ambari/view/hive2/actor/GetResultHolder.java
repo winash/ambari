@@ -1,10 +1,29 @@
 package org.apache.ambari.view.hive2.actor;
 
-/**
- * Created by arajeev on 16/05/16.
- */
 public class GetResultHolder {
 
-    String jobId ="10";
+    private String jobId;
+    private String userName;
 
+    public GetResultHolder(String jobId, String userName) {
+        this.jobId = jobId;
+        this.userName = userName;
+    }
+
+
+    public String getJobId() {
+        return jobId;
+    }
+
+    public String getUserName() {
+        return userName;
+    }
+
+    @Override
+    public String toString() {
+        return "GetResultHolder{" +
+                "jobId='" + jobId + '\'' +
+                ", userName='" + userName + '\'' +
+                '}';
+    }
 }

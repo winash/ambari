@@ -54,7 +54,6 @@ public class ResultHolder extends UntypedActor {
         if (message instanceof ExecuteQuery) {
             try {
                 executeQuery(message);
-                // if nothing went wrong notify the parent
 
             } catch (SQLException e) {
                 //TODO:Send a failed message
@@ -80,7 +79,9 @@ public class ResultHolder extends UntypedActor {
         ExecuteQuery executeQuery = (ExecuteQuery) message;
         Statement statement = executeQuery.getStatement().get();
         try {
+            System.out.println("Before get UpdateCount"+ self());
             statement.getUpdateCount();
+            System.out.println("After get UpdateCount"+ self());
             operationController.tell(new ResultReady(executeJob.getJobId(),
                     executeJob.getUsername(),
                     Either.<ActorRef, ExecutionResult>right(new ExecutionResult())),self());

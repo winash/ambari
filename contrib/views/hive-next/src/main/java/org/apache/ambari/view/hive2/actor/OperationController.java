@@ -19,7 +19,6 @@ import org.apache.ambari.view.hive2.internal.Either;
 import org.apache.ambari.view.hive2.internal.ExecutionResult;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.ambari.view.utils.hdfs.HdfsApiException;
-import org.apache.ambari.view.utils.hdfs.HdfsUtil;
 import org.apache.commons.collections4.map.HashedMap;
 
 import java.util.HashMap;
@@ -82,7 +81,7 @@ public class OperationController extends UntypedActor {
   }
 
   private void getResultHolder(GetResultHolder message) {
-    sender().tell(busyConnections.get("admin").get(message.jobId).result,self());
+    sender().tell(busyConnections.get(message.getUserName()).get(message.getJobId()).result,self());
   }
 
   private void updateResultContainer(ResultReady message) {
@@ -129,7 +128,7 @@ public class OperationController extends UntypedActor {
 
       subActor = getContext().actorOf(
         Props.create(JdbcConnector.class,viewContext, hdfsApi, system, self(), new HiveJdbcConnectionDelegate(),new DataStoreStorage(viewContext)),
-        username + ":" + jobId);
+        username + ":" + jobId + ":" + "jdbcConnector");
 
     }
 
@@ -154,7 +153,8 @@ public class OperationController extends UntypedActor {
   }
 
   private HdfsApi getHdfsApi() throws HdfsApiException {
-    return HdfsUtil.connectToHDFSApi(viewContext);
+    return null;
+//    return HdfsUtil.connectToHDFSApi(viewContext);
   }
 
   private void destroyConnector(DestroyConnector message) {
@@ -177,6 +177,7 @@ public class OperationController extends UntypedActor {
       if(actors.containsKey(jobId)) {
         ref = actors.get(jobId).actorRef;
         actors.remove(jobId);
+        System.out.println("removed");
       }
     }
     return Optional.fromNullable(ref);
@@ -189,6 +190,7 @@ public class OperationController extends UntypedActor {
 
     Queue<ActorRef> availableActors = availableConnections.get(username);
     availableActors.add(actor);
+    System.out.println("added");
   }
 
   private void removeFromAvailable(String username, ActorRef sender) {

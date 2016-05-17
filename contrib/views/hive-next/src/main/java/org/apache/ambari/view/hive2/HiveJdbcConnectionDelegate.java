@@ -40,6 +40,8 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
       return Optional.absent();
 
     } catch (SQLException e) {
+      // Close the statement on any error
+      currentStatement.close();
       throw e;
 
     }
