@@ -165,6 +165,8 @@ public class OperationController extends UntypedActor {
       busyConnections.put(username, actors);
     }
 
+    // set up the connect with Job id for terminations
+    connect.setJobId(jobId);
     subActor.tell(connect, self());
     subActor.tell(job, self());
 
@@ -208,6 +210,8 @@ public class OperationController extends UntypedActor {
       syncBusyConnections.put(username, actors);
     }
 
+    // Termination requires that the ref is known in case of sync jobs
+    connect.setSync();
     subActor.tell(connect, self());
     subActor.tell(job, self());
   }
@@ -219,7 +223,11 @@ public class OperationController extends UntypedActor {
 
   private void destroyConnector(DestroyConnector message) {
     ActorRef sender = getSender();
-    removeFromBusyPool(message.getUsername(), message.getJobId());
+    if(!message.WasJobSync()) {
+      removeFromBusyPool(message.getUsername(), message.getJobId());
+    } else {
+      removeFromSyncPool(message.getUsername(),message.getToDestory());
+    }
     removeFromAvailable(message.getUsername(), sender);
   }
 

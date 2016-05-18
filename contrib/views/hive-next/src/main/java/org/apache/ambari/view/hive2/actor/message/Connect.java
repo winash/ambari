@@ -20,8 +20,9 @@ public class Connect {
   private final int port;
   private final Map<String, String> authParams;
   private String jobId;
+  private boolean isSync;
 
-  public Connect(String jobId,String username, String password, String host, int port, Map<String, String> authParams) {
+  public Connect(String username, String password, String host, int port, Map<String, String> authParams) {
     this.jobId = jobId;
     this.username = username;
     this.password = password;
@@ -31,7 +32,7 @@ public class Connect {
   }
 
   public Connect(String jobId,String username, String password, String host, int port) {
-    this(jobId,username, password, host, port, Maps.<String, String>newHashMap());
+    this(username, password, host, port, Maps.<String, String>newHashMap());
   }
 
   public String getUsername() {
@@ -98,5 +99,13 @@ public class Connect {
 
   public void setJobId(String jobId) {
     this.jobId = jobId;
+  }
+
+  public boolean isSync() {
+    return isSync;
+  }
+
+  public void setSync() {
+    isSync = true;
   }
 }

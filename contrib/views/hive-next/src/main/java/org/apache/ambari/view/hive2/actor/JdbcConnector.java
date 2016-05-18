@@ -148,6 +148,8 @@ public class JdbcConnector extends UntypedActor {
 
   }
 
+
+
   private void executeJob(ExecuteAsyncJob message) {
     System.out.println("Executing job" + self());
     if (connectable == null) {
@@ -226,7 +228,7 @@ public class JdbcConnector extends UntypedActor {
       Optional<ResultSet> resultSetOptional = connectionDelegate.execute(connectionOptional.get(), job);
       // There should be a result set, which either has a result set, or an empty value
       // for operations which do not return anything
-      ActorRef resultHolder = getContext().actorOf(
+      resultHolder = getContext().actorOf(
         Props.create(ResultHolder.class, viewContext, system, self(), parent, job),
         job.getUsername() + ":" + Job.SYNC_JOB_MARKER + "-resultHolder");
 
@@ -318,7 +320,12 @@ public class JdbcConnector extends UntypedActor {
         resultHolder = null;
       }
 
-      parent.tell(new DestroyConnector(message.getUserName(),message.getJobId()), this.self());
+      if(message.isJobSync()){
+        parent.tell(new DestroyConnector(self(),message.getUserName()), this.self());
+      } else {
+        parent.tell(new DestroyConnector(message.getUserName(),message.getJobId()), this.self());
+
+      }
       self().tell(PoisonPill.getInstance(), ActorRef.noSender());
     }
   }
