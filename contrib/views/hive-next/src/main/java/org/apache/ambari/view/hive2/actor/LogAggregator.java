@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Reads the logs for a Job from the Statement and writes them into hdfs.
+ * Reads the logs for a ExecuteJob from the Statement and writes them into hdfs.
  */
 public class LogAggregator extends UntypedActor {
   public static final int AGGREGATION_INTERVAL = 30 * 1000;

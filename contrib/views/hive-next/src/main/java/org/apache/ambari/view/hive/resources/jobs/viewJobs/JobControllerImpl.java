@@ -172,7 +172,7 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
 
     } /*catch (HiveErrorStatusException e) {
       LOG.debug("Error updating status for job#" + job.getId() + ": " + e.getMessage());
-      job.setStatus(Job.JOB_STATE_UNKNOWN);
+      job.setStatus(ExecuteJob.JOB_STATE_UNKNOWN);
 
     } catch (HiveClientException e) {
       throw new HiveClientFormattedException(e);

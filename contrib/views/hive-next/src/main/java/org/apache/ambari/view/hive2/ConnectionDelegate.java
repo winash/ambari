@@ -1,7 +1,6 @@
 package org.apache.ambari.view.hive2;
 
 import com.google.common.base.Optional;
-import org.apache.ambari.view.hive2.actor.message.ExecuteAsyncJob;
 import org.apache.ambari.view.hive2.actor.message.HiveJob;
 import org.apache.ambari.view.hive2.internal.HiveResult;
 import org.apache.hive.jdbc.HiveConnection;

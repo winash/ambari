@@ -135,7 +135,7 @@ public class JobService extends BaseService {
     try {
       mergedJob = getAggregator().readATSJob(hiveJob);
     } catch (ItemNotFound itemNotFound) {
-      throw new ServiceFormattedException("E010 Job not found", itemNotFound);
+      throw new ServiceFormattedException("E010 ExecuteJob not found", itemNotFound);
     }
     Map createdJobMap = PropertyUtils.describe(mergedJob);
     createdJobMap.remove("class"); // no need to show Bean class on client
@@ -248,7 +248,7 @@ public class JobService extends BaseService {
             } catch (InterruptedException e) {
               throw new ServiceFormattedException("F010 Could not write CSV to HDFS for job#" + jobController.getJob().getId(), e);
             } catch (ItemNotFound itemNotFound) {
-              throw new NotFoundFormattedException("E020 Job results are expired", itemNotFound);
+              throw new NotFoundFormattedException("E020 ExecuteJob results are expired", itemNotFound);
             }
 
           }
@@ -314,10 +314,10 @@ public class JobService extends BaseService {
     try {
       final JobController jobController = getResourceManager().readController(jobId);
       /*LOG.info("jobController.getStatus().status : " + jobController.getStatus().status + " for job : " + jobController.getJob().getId());
-      if(jobController.getStatus().status.equals(Job.JOB_STATE_INITIALIZED)
-         || jobController.getStatus().status.equals(Job.JOB_STATE_PENDING)
-         || jobController.getStatus().status.equals(Job.JOB_STATE_RUNNING)
-         || jobController.getStatus().status.equals(Job.JOB_STATE_UNKNOWN)){
+      if(jobController.getStatus().status.equals(ExecuteJob.JOB_STATE_INITIALIZED)
+         || jobController.getStatus().status.equals(ExecuteJob.JOB_STATE_PENDING)
+         || jobController.getStatus().status.equals(ExecuteJob.JOB_STATE_RUNNING)
+         || jobController.getStatus().status.equals(ExecuteJob.JOB_STATE_UNKNOWN)){
 
          return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Retry-After","1").build();
       }*/

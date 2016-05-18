@@ -7,13 +7,13 @@ public class InactivityCheck {
     private final boolean isJobSync;
 
 
-    public InactivityCheck(ExecuteAsyncJob message) {
+    public InactivityCheck(AsyncJob message) {
         userName = message.getUsername();
         jobId = message.getJobId();
         isJobSync = false;
     }
 
-    public InactivityCheck(ExecuteSyncJob job) {
+    public InactivityCheck(SyncJob job) {
         userName = job.getUsername();
         jobId = null;
         isJobSync = true;

@@ -50,7 +50,29 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
 
   @Override
   public Optional<HiveResult> executeSync(HiveConnection connection, HiveJob job) throws SQLException {
-    return Optional.absent();
+    try {
+      Statement statement = connection.createStatement();
+      currentStatement = (HiveStatement) statement;
+
+      boolean hasResultSet = true;
+      for (String syncStatement : job.getStatements()) {
+        // we don't care about the result
+        // fail all if one fails
+        hasResultSet = statement.execute(syncStatement);
+      }
+
+      if (hasResultSet) {
+        ResultSet resultSet = statement.getResultSet();
+        HiveResult result = new HiveResult(resultSet);
+        return Optional.of(result);
+      } else {
+        return Optional.absent();
+      }
+    } catch (SQLException e) {
+      // Close the statement on any error
+      currentStatement.close();
+      throw e;
+    }
   }
 
   @Override

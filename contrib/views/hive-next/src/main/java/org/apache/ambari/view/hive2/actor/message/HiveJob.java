@@ -25,8 +25,8 @@ public class HiveJob {
     return username;
   }
 
-  public String[] getStatements() {
-    return statements;
+  public Collection<String> getStatements() {
+    return Arrays.asList(statements);
   }
 
 

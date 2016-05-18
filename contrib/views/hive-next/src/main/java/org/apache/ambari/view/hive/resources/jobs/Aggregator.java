@@ -44,20 +44,20 @@ import java.util.Set;
 /**
  * View Jobs and ATS Jobs aggregator.
  * There are 4 options:
- * 1) ATS Job without operationId
+ * 1) ATS ExecuteJob without operationId
  *    *Meaning*: executed outside of HS2
- *    - Job info only from ATS
- * 2) ATS Job with operationId
-  *    a) Hive View Job with same operationId is not present
+ *    - ExecuteJob info only from ATS
+ * 2) ATS ExecuteJob with operationId
+  *    a) Hive View ExecuteJob with same operationId is not present
  *        *Meaning*: executed with HS2
- *      - Job info only from ATS
- *    b) Hive View Job with operationId is present (need to merge)
+ *      - ExecuteJob info only from ATS
+ *    b) Hive View ExecuteJob with operationId is present (need to merge)
  *        *Meaning*: executed with HS2 through Hive View
- *      - Job info merged from ATS and from Hive View DataStorage
- * 3) Job present only in Hive View, ATS does not have it
- *   *Meaning*: executed through Hive View, but Hadoop Job was not created
+ *      - ExecuteJob info merged from ATS and from Hive View DataStorage
+ * 3) ExecuteJob present only in Hive View, ATS does not have it
+ *   *Meaning*: executed through Hive View, but Hadoop ExecuteJob was not created
  *   it can happen if user executes query without aggregation, like just "select * from TABLE"
- *   - Job info only from Hive View
+ *   - ExecuteJob info only from Hive View
  */
 public class Aggregator {
   protected final static Logger LOG =

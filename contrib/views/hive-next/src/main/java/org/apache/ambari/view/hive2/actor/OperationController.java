@@ -10,12 +10,12 @@ import org.apache.ambari.view.hive.persistence.DataStoreStorage;
 import org.apache.ambari.view.hive2.HiveJdbcConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
-import org.apache.ambari.view.hive2.actor.message.ExecuteAsyncJob;
-import org.apache.ambari.view.hive2.actor.message.ExecuteSyncJob;
+import org.apache.ambari.view.hive2.actor.message.AsyncJob;
+import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
+import org.apache.ambari.view.hive2.actor.message.SyncJob;
 import org.apache.ambari.view.hive2.actor.message.FetchResult;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.HiveJob;
-import org.apache.ambari.view.hive2.actor.message.Job;
 import org.apache.ambari.view.hive2.actor.message.JobRejected;
 import org.apache.ambari.view.hive2.actor.message.JobSubmitted;
 import org.apache.ambari.view.hive2.actor.message.ResultReady;
@@ -68,12 +68,12 @@ public class OperationController extends UntypedActor {
 
   @Override
   public void onReceive(Object message) throws Exception {
-    if (message instanceof Job) {
-      Job job = (Job) message;
+    if (message instanceof ExecuteJob) {
+      ExecuteJob job = (ExecuteJob) message;
       if(job.getJob().getType() == HiveJob.Type.ASYNC) {
-        sendJob(job.getConnect(), (ExecuteAsyncJob)job.getJob());
+        sendJob(job.getConnect(), (AsyncJob)job.getJob());
       } else if (job.getJob().getType() == HiveJob.Type.SYNC) {
-        sendSyncJob(job.getConnect(), (ExecuteSyncJob) job.getJob());
+        sendSyncJob(job.getConnect(), (SyncJob) job.getJob());
       }
     }
 
@@ -120,7 +120,7 @@ public class OperationController extends UntypedActor {
 
   }
 
-  private void sendJob(Connect connect, ExecuteAsyncJob job) {
+  private void sendJob(Connect connect, AsyncJob job) {
     String username = connect.getUsername();
     String jobId = job.getJobId();
     ActorRef subActor = null;
@@ -165,7 +165,7 @@ public class OperationController extends UntypedActor {
       busyConnections.put(username, actors);
     }
 
-    // set up the connect with Job id for terminations
+    // set up the connect with ExecuteJob id for terminations
     connect.setJobId(jobId);
     subActor.tell(connect, self());
     subActor.tell(job, self());
@@ -173,7 +173,7 @@ public class OperationController extends UntypedActor {
     sender().tell(new JobSubmitted(username, jobId), ActorRef.noSender());
   }
 
-  private void sendSyncJob(Connect connect, ExecuteSyncJob job) {
+  private void sendSyncJob(Connect connect, SyncJob job) {
     String username = job.getUsername();
     ActorRef subActor = null;
     // Check if there is available actors to process this
@@ -192,7 +192,7 @@ public class OperationController extends UntypedActor {
         hdfsApi = getHdfsApi();
       } catch (HdfsApiException e) {
         // TODO: LOG Here
-        sender().tell(new JobRejected(username, Job.SYNC_JOB_MARKER, "Failed to connect to HDFS."), ActorRef.noSender());
+        sender().tell(new JobRejected(username, ExecuteJob.SYNC_JOB_MARKER, "Failed to connect to HDFS."), ActorRef.noSender());
         return;
       }
 

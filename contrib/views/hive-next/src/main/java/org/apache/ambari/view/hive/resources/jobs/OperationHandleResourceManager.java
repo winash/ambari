@@ -85,7 +85,7 @@ public class OperationHandleResourceManager extends SharedCRUDResourceManager<St
   }
 
   /*@Override
-  public void putHandleForJob(TOperationHandle h, Job job) {
+  public void putHandleForJob(TOperationHandle h, ExecuteJob job) {
     StoredOperationHandle handle = StoredOperationHandle.buildFromTOperationHandle(h);
     handle.setJobId(job.getId());
 

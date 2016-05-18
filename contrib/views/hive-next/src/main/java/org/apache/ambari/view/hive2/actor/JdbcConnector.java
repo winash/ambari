@@ -15,18 +15,21 @@ import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.AssignResultSet;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
-import org.apache.ambari.view.hive2.actor.message.ExecuteAsyncJob;
+import org.apache.ambari.view.hive2.actor.message.AsyncJob;
+import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
 import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
-import org.apache.ambari.view.hive2.actor.message.ExecuteSyncJob;
+import org.apache.ambari.view.hive2.actor.message.SyncJob;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.InactivityCheck;
-import org.apache.ambari.view.hive2.actor.message.Job;
 import org.apache.ambari.view.hive2.actor.message.StartLogAggregation;
 import org.apache.ambari.view.hive2.actor.message.TerminateInactivityCheck;
 import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
 import org.apache.ambari.view.hive2.internal.Connectable;
 import org.apache.ambari.view.hive2.internal.ConnectionException;
+import org.apache.ambari.view.hive2.internal.Either;
+import org.apache.ambari.view.hive2.internal.ExecutionResult;
 import org.apache.ambari.view.hive2.internal.HiveConnectionWrapper;
+import org.apache.ambari.view.hive2.internal.HiveResult;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveConnection;
 import org.apache.hive.jdbc.HiveStatement;
@@ -38,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Wraps one Jdbc connection per user, per instance. This is used to delegate execute the statements and
- * creates child actors to delegate the resultset extraction, YARN/ATS querying for Job info and Log Aggregation
+ * creates child actors to delegate the resultset extraction, YARN/ATS querying for ExecuteJob info and Log Aggregation
  */
 public class JdbcConnector extends UntypedActor {
 
@@ -110,12 +113,12 @@ public class JdbcConnector extends UntypedActor {
       connect((Connect) message);
     }
 
-    if (message instanceof ExecuteAsyncJob) {
-      executeJob((ExecuteAsyncJob) message);
+    if (message instanceof AsyncJob) {
+      executeJob((AsyncJob) message);
     }
 
-    if (message instanceof ExecuteSyncJob) {
-      executeSyncJob((ExecuteSyncJob) message);
+    if (message instanceof SyncJob) {
+      executeSyncJob((SyncJob) message);
     }
 
     if (message instanceof InactivityCheck) {
@@ -150,7 +153,7 @@ public class JdbcConnector extends UntypedActor {
 
 
 
-  private void executeJob(ExecuteAsyncJob message) {
+  private void executeJob(AsyncJob message) {
     System.out.println("Executing job" + self());
     if (connectable == null) {
       throw new NotConnectedException("Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive");
@@ -210,7 +213,8 @@ public class JdbcConnector extends UntypedActor {
       this.self(), new InactivityCheck(message), system.dispatcher(), null);
   }
 
-  private void executeSyncJob(ExecuteSyncJob job) {
+  private void executeSyncJob(SyncJob job) {
+    ActorRef sender = this.getSender();
     if (connectable == null) {
       throw new NotConnectedException("Cannot execute sync job for user: " + job.getUsername() + ". Not connected to Hive");
     }
@@ -225,32 +229,11 @@ public class JdbcConnector extends UntypedActor {
       this.executing = true;
       this.async = false;
 
-      Optional<ResultSet> resultSetOptional = connectionDelegate.execute(connectionOptional.get(), job);
-      // There should be a result set, which either has a result set, or an empty value
-      // for operations which do not return anything
-      resultHolder = getContext().actorOf(
-        Props.create(ResultHolder.class, viewContext, system, self(), parent, job),
-        job.getUsername() + ":" + Job.SYNC_JOB_MARKER + "-resultHolder");
-
-      if (resultSetOptional.isPresent()) {
-        // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
-        // tell the result holder to assign the result set for further operations
-        resultHolder.tell(new AssignResultSet(resultSetOptional), self());
-
-        // Start a actor to query ATS
-      } else {
-        // Case when this is an Update/query with no results
-        // Wait for operation to complete and add results;
-        resultHolder.tell(new ExecuteQuery(connectionDelegate.getCurrentStatement()), self());
+      Optional<HiveResult> resultOptional = connectionDelegate.executeSync(connectionOptional.get(), job);
+      if(resultOptional.isPresent()) {
+        sender.tell(Either.right(new ExecutionResult()), self());
       }
-      // Start a actor to query log
-      Optional<HiveStatement> statementOptional = connectionDelegate.getCurrentStatement();
 
-      if (statementOptional.isPresent()) {
-//        updateGuidInJob(jobId, statementOptional.get());
-        // Wait for the result in the Holder and update HDFS with the error log if any
-
-      }
 
     } catch (SQLException e) {
       // Something went wrong with executing the Statement

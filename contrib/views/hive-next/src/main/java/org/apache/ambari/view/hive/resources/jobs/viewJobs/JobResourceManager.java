@@ -96,12 +96,12 @@ public class JobResourceManager extends PersonalCRUDResourceManager<Job> {
     return jobControllerFactory.createControllerForJob(job);
   }
 
-  /*public Cursor getJobResultsCursor(Job job) {
+  /*public Cursor getJobResultsCursor(ExecuteJob job) {
     try {
       JobController jobController = jobControllerFactory.createControllerForJob(job);
       return jobController.getResults();
     } catch (ItemNotFound itemNotFound) {
-      throw new NotFoundFormattedException("Job results are expired", null);
+      throw new NotFoundFormattedException("ExecuteJob results are expired", null);
     }
   }*/
 

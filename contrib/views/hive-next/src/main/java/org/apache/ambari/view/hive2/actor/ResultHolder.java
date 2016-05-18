@@ -5,7 +5,7 @@ import akka.actor.ActorSystem;
 import akka.actor.UntypedActor;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive2.actor.message.AssignResultSet;
-import org.apache.ambari.view.hive2.actor.message.ExecuteAsyncJob;
+import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
 import org.apache.ambari.view.hive2.actor.message.GetMoreResults;
 import org.apache.ambari.view.hive2.actor.message.ResultReady;
@@ -31,12 +31,12 @@ public class ResultHolder extends UntypedActor {
      */
     private final ActorRef operationController;
     /**
-     * Job for which this holder is assigned
+     * ExecuteJob for which this holder is assigned
      */
-    private final ExecuteAsyncJob executeJob;
+    private final AsyncJob executeJob;
     private ResultSet resultSet;
 
-    public ResultHolder(ViewContext viewContext, ActorSystem system, ActorRef actorRef, ActorRef operationController,ExecuteAsyncJob executeJob) {
+    public ResultHolder(ViewContext viewContext, ActorSystem system, ActorRef actorRef, ActorRef operationController,AsyncJob executeJob) {
         this.parent = actorRef;
 
         this.system = system;

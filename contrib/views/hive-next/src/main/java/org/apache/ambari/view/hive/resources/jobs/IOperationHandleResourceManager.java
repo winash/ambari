@@ -31,7 +31,7 @@ public interface IOperationHandleResourceManager extends IResourceManager<Stored
 
   Job getJobByHandle(StoredOperationHandle handle) throws ItemNotFound;
 
-  //void putHandleForJob(TOperationHandle h, Job job);
+  //void putHandleForJob(TOperationHandle h, ExecuteJob job);
 
   boolean containsHandleForJob(Job job);
 

@@ -25,7 +25,7 @@ import org.apache.ambari.view.hive.persistence.utils.PersonalResource;
 import java.io.Serializable;
 
 /**
- * Interface for Job bean to create Proxy for it
+ * Interface for ExecuteJob bean to create Proxy for it
  */
 public interface Job extends Serializable,Indexed,PersonalResource {
   public static final String JOB_STATE_UNKNOWN = "Unknown";
