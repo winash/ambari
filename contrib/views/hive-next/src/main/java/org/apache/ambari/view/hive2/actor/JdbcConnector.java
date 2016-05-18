@@ -82,8 +82,6 @@ public class JdbcConnector extends UntypedActor {
   // The result Holder assigned to this Connector
   private ActorRef resultHolder;
 
-  private String username;
-  private String jobId;
 
   /**
    * true if the actor is currently executing any job.
@@ -207,7 +205,7 @@ public class JdbcConnector extends UntypedActor {
     // Start Inactivity timer to close the statement
     this.inactivityScheduler = system.scheduler().schedule(
       Duration.Zero(), Duration.create(15 * 1000, TimeUnit.MILLISECONDS),
-      this.self(), new InactivityCheck(), system.dispatcher(), null);
+      this.self(), new InactivityCheck(message), system.dispatcher(), null);
   }
 
   private void executeSyncJob(ExecuteSyncJob job) {
@@ -230,7 +228,7 @@ public class JdbcConnector extends UntypedActor {
       // for operations which do not return anything
       ActorRef resultHolder = getContext().actorOf(
         Props.create(ResultHolder.class, viewContext, system, self(), parent, job),
-        username + ":" + Job.SYNC_JOB_MARKER);
+        job.getUsername() + ":" + Job.SYNC_JOB_MARKER + "-resultHolder");
 
       if (resultSetOptional.isPresent()) {
         // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
@@ -262,7 +260,7 @@ public class JdbcConnector extends UntypedActor {
     // Start Inactivity timer to close the statement
     this.inactivityScheduler = system.scheduler().schedule(
       Duration.Zero(), Duration.create(15 * 1000, TimeUnit.MILLISECONDS),
-      this.self(), new InactivityCheck(), system.dispatcher(), null);
+      this.self(), new InactivityCheck(job), system.dispatcher(), null);
   }
 
   private void updateGuidInJob(String jobId, HiveStatement statement) {
@@ -295,7 +293,11 @@ public class JdbcConnector extends UntypedActor {
       resultHolder = null;
       // Tell the router actor to remove the reference from its cache
       // Tell the router actor to render this connectable actor as free.
-      parent.tell(new FreeConnector(username, jobId), this.self());
+      if(message.isJobSync()){
+        parent.tell(new FreeConnector(self(),message), this.self());
+      }else {
+        parent.tell(new FreeConnector(message), this.self());
+      }
       inactivityScheduler.cancel();
     }
   }
@@ -309,6 +311,11 @@ public class JdbcConnector extends UntypedActor {
         connectionDelegate.closeResultSet();
       } catch (SQLException e) {
         // TODO: check this
+      }
+      if(resultHolder != null){
+        resultHolder.tell(PoisonPill.getInstance(), self());
+       //nullify the reference
+        resultHolder = null;
       }
 
       parent.tell(new DestroyConnector(message.getUserName(),message.getJobId()), this.self());

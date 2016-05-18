@@ -25,12 +25,12 @@ import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.ambari.view.utils.hdfs.HdfsApiException;
 import org.apache.commons.collections4.map.HashedMap;
 
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -50,13 +50,13 @@ public class OperationController extends UntypedActor {
   /**
    * Store the connection per user/per job which are currently working.
    */
-  private final Map<String, Map<String, Container>> busyConnections;
+  private final Map<String, Map<String, ActorRefResultContainer>> busyConnections;
 
   /**
    * Store the connection per user which will be used to execute sync jobs
    * like fetching databases, tables etc.
    */
-  private final Map<String, List<ActorRef>> syncBusyConnections;
+  private final Map<String, Set<ActorRef>> syncBusyConnections;
 
   public OperationController(ViewContext viewContext, ActorSystem system) {
     this.viewContext = viewContext;
@@ -152,16 +152,16 @@ public class OperationController extends UntypedActor {
     }
 
     if (busyConnections.containsKey(username)) {
-      Map<String, Container> actors = busyConnections.get(username);
+      Map<String, ActorRefResultContainer> actors = busyConnections.get(username);
       if(!actors.containsKey(jobId)) {
-        actors.put(jobId, new Container(subActor));
+        actors.put(jobId, new ActorRefResultContainer(subActor));
       } else {
         // Reject this as with the same jobId one connection is already in progress.
         sender().tell(new JobRejected(username, jobId, "Existing job in progress with same jobId."), ActorRef.noSender());
       }
     } else {
-      Map<String, Container> actors = new HashMap<>();
-      actors.put(jobId, new Container(subActor));
+      Map<String, ActorRefResultContainer> actors = new HashMap<>();
+      actors.put(jobId, new ActorRefResultContainer(subActor));
       busyConnections.put(username, actors);
     }
 
@@ -200,10 +200,10 @@ public class OperationController extends UntypedActor {
     }
 
     if (syncBusyConnections.containsKey(username)) {
-      List<ActorRef> actors = syncBusyConnections.get(username);
+      Set<ActorRef> actors = syncBusyConnections.get(username);
       actors.add(subActor);
     } else {
-      List<ActorRef> actors = new ArrayList<>();
+      LinkedHashSet<ActorRef> actors = new LinkedHashSet<>();
       actors.add(subActor);
       syncBusyConnections.put(username, actors);
     }
@@ -219,21 +219,40 @@ public class OperationController extends UntypedActor {
 
   private void destroyConnector(DestroyConnector message) {
     ActorRef sender = getSender();
-    removeFromBusy(message.getUsername(), message.getJobId());
+    removeFromBusyPool(message.getUsername(), message.getJobId());
     removeFromAvailable(message.getUsername(), sender);
   }
 
   private void freeConnector(FreeConnector message) {
-    Optional<ActorRef> refOptional = removeFromBusy(message.getUsername(), message.getJobId());
-    if(refOptional.isPresent()) {
-      addToAvailable(message.getUsername(), refOptional.get());
+    if(!message.wasJobSync()) {
+      Optional<ActorRef> refOptional = removeFromBusyPool(message.getUserName(), message.getJobId());
+      if (refOptional.isPresent()) {
+        addToAvailable(message.getUserName(), refOptional.get());
+      }
+      return;
     }
+    // Was a sync job, remove from sync pool
+    Optional<ActorRef> refOptional = removeFromSyncPool(message.getUserName(),message.getRefToFree());
+    if (refOptional.isPresent()) {
+      addToAvailable(message.getUserName(), refOptional.get());
+    }
+
+
+
   }
 
-  private Optional<ActorRef> removeFromBusy(String username, String jobId) {
+  private Optional<ActorRef> removeFromSyncPool(String userName, ActorRef refToFree) {
+    if(syncBusyConnections.containsKey(userName)){
+      Set<ActorRef> actorRefs = syncBusyConnections.get(userName);
+      actorRefs.remove(refToFree);
+    }
+    return Optional.of(refToFree);
+  }
+
+  private Optional<ActorRef> removeFromBusyPool(String username, String jobId) {
     ActorRef ref = null;
     if (busyConnections.containsKey(username)) {
-      Map<String, Container> actors = busyConnections.get(username);
+      Map<String, ActorRefResultContainer> actors = busyConnections.get(username);
       if(actors.containsKey(jobId)) {
         ref = actors.get(jobId).actorRef;
         actors.remove(jobId);
@@ -259,16 +278,15 @@ public class OperationController extends UntypedActor {
     actors.remove(sender);
   }
 
-  private static class Container {
+  private static class ActorRefResultContainer {
 
     ActorRef actorRef;
     Either<ActorRef,ExecutionResult> result = Either.none();
 
-    public Container(ActorRef actorRef) {
+    public ActorRefResultContainer(ActorRef actorRef) {
       this.actorRef = actorRef;
     }
   }
-
 
 
 }
