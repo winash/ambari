@@ -2,8 +2,13 @@ package org.apache.ambari.view.hive2.actor;
 
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import org.apache.ambari.view.hive2.actor.message.HiveMessage;
+import org.apache.ambari.view.hive2.actor.message.job.FetchFailed;
+import org.apache.ambari.view.hive2.actor.message.job.Next;
+import org.apache.ambari.view.hive2.actor.message.job.NoMoreItems;
+import org.apache.ambari.view.hive2.actor.message.job.Result;
+import org.apache.hadoop.yarn.webapp.hamlet.HamletSpec;
 
 import java.math.RoundingMode;
 import java.sql.ResultSet;
@@ -17,7 +22,7 @@ import java.util.List;
 /**
  * Created by dbhowmick on 5/18/16.
  */
-public class ResultSetIterator extends UntypedActor {
+public class ResultSetIterator extends HiveActor {
   private static final int DEFAULT_BATCH_SIZE = 100;
   public static final String NULL = "NULL";
 
@@ -45,7 +50,8 @@ public class ResultSetIterator extends UntypedActor {
   }
 
   @Override
-  public void onReceive(Object message) throws Exception {
+  void handleMessage(HiveMessage hiveMessage) {
+    Object message = hiveMessage.getMessage();
     if (message instanceof Next) {
       getNext();
     }
@@ -92,45 +98,6 @@ public class ResultSetIterator extends UntypedActor {
     colNames = new Row(columnCount);
   }
 
-  public static class Next {
-  }
-
-  public static class NoMoreItems {
-  }
-
-  public static class Result {
-    private final List<Row> rows;
-    public Result(List<Row> rows) {
-      this.rows = ImmutableList.copyOf(rows);
-    }
-
-    public List<Row> getRows() {
-      return rows;
-    }
-  }
-
-
-  public static class FetchFailed {
-    private final Throwable error;
-    private final String message;
-
-    public FetchFailed(String message, Throwable error) {
-      this.error = error;
-      this.message = message;
-    }
-
-    public FetchFailed(String message) {
-      this(message, new Exception(message));
-    }
-
-    public Throwable getError() {
-      return error;
-    }
-
-    public String getMessage() {
-      return message;
-    }
-  }
 
   public class Row {
     String[] values;
@@ -172,15 +139,4 @@ public class ResultSetIterator extends UntypedActor {
     }
   }
 
-  public static class ResultSetHolder {
-    private final ActorRef iterator;
-
-    public ResultSetHolder(ActorRef iterator) {
-      this.iterator = iterator;
-    }
-
-    public ActorRef getIterator() {
-      return iterator;
-    }
-  }
 }

@@ -7,18 +7,22 @@ import akka.actor.Props;
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
-import org.apache.ambari.view.hive2.actor.JdbcConnector;
 import org.apache.ambari.view.hive2.actor.OperationController;
 import org.apache.ambari.view.hive2.actor.ResultSetIterator;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
 import org.apache.ambari.view.hive2.actor.message.HiveJob;
 import org.apache.ambari.view.hive2.actor.message.SyncJob;
+import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
+import org.apache.ambari.view.hive2.actor.message.job.FetchFailed;
+import org.apache.ambari.view.hive2.actor.message.job.Next;
+import org.apache.ambari.view.hive2.actor.message.job.NoMoreItems;
+import org.apache.ambari.view.hive2.actor.message.job.NoResult;
+import org.apache.ambari.view.hive2.actor.message.job.Result;
+import org.apache.ambari.view.hive2.actor.message.job.ResultSetHolder;
 import org.apache.ambari.view.hive2.internal.DataStorageSupplier;
 import org.apache.ambari.view.hive2.internal.DefaultSupplier;
-import org.apache.ambari.view.hive2.internal.HdfsApiSupplier;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
-import org.apache.curator.framework.imps.DefaultACLProvider;
 import scala.concurrent.duration.Duration;
 
 import java.util.List;
@@ -57,25 +61,25 @@ public class HiveActorSystem {
 
       Object jdbcResult = inbox.receive(Duration.create(1, TimeUnit.MINUTES));
 
-      if (jdbcResult instanceof JdbcConnector.NoResult) {
+      if (jdbcResult instanceof NoResult) {
         System.out.println("Executed with no result!!!");
-      } else if (jdbcResult instanceof JdbcConnector.ExecutionFailed) {
+      } else if (jdbcResult instanceof ExecutionFailed) {
 
-        JdbcConnector.ExecutionFailed error = (JdbcConnector.ExecutionFailed) jdbcResult;
+        ExecutionFailed error = (ExecutionFailed) jdbcResult;
         System.out.println(error.getMessage());
         error.getError().printStackTrace();
 
-      } else if (jdbcResult instanceof ResultSetIterator.ResultSetHolder){
-        ResultSetIterator.ResultSetHolder holder = (ResultSetIterator.ResultSetHolder) jdbcResult;
+      } else if (jdbcResult instanceof ResultSetHolder){
+        ResultSetHolder holder = (ResultSetHolder) jdbcResult;
         ActorRef iterator = holder.getIterator();
         while(true) {
           System.out.println("Fetching next results >>>");
 
-          inbox.send(iterator, new ResultSetIterator.Next());
+          inbox.send(iterator, new Next());
           Object receive = inbox.receive(Duration.create(1, TimeUnit.MINUTES));
 
-          if(receive instanceof ResultSetIterator.Result) {
-            ResultSetIterator.Result result = (ResultSetIterator.Result) receive;
+          if(receive instanceof Result) {
+            Result result = (Result) receive;
             List<ResultSetIterator.Row> rows = result.getRows();
             System.out.println("Fetched " + rows.size() + " entries.");
             for(ResultSetIterator.Row row : rows) {
@@ -83,13 +87,13 @@ public class HiveActorSystem {
             }
           }
 
-          if(receive instanceof  ResultSetIterator.NoMoreItems) {
+          if(receive instanceof NoMoreItems) {
             System.out.println("Finished fetching all rows. Exiting...");
             break;
           }
 
-          if(receive instanceof  ResultSetIterator.FetchFailed) {
-            ResultSetIterator.FetchFailed message = (ResultSetIterator.FetchFailed) receive;
+          if(receive instanceof FetchFailed) {
+            FetchFailed message = (FetchFailed) receive;
             Throwable exception = message.getError();
             String str = message.getMessage();
             System.out.println(str);

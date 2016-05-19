@@ -5,7 +5,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Cancellable;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
-import akka.actor.UntypedActor;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.persistence.Storage;
@@ -23,10 +22,12 @@ import org.apache.ambari.view.hive2.actor.message.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.InactivityCheck;
 import org.apache.ambari.view.hive2.actor.message.StartLogAggregation;
 import org.apache.ambari.view.hive2.actor.message.TerminateInactivityCheck;
+import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
+import org.apache.ambari.view.hive2.actor.message.job.NoResult;
+import org.apache.ambari.view.hive2.actor.message.job.ResultSetHolder;
 import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
 import org.apache.ambari.view.hive2.internal.Connectable;
 import org.apache.ambari.view.hive2.internal.ConnectionException;
-import org.apache.ambari.view.hive2.internal.HiveConnectionWrapper;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveConnection;
 import org.apache.hive.jdbc.HiveStatement;
@@ -230,9 +231,9 @@ public class JdbcConnector extends HiveActor {
       Optional<ResultSet> resultSetOptional = connectionDelegate.executeSync(connectionOptional.get(), job);
       if(resultSetOptional.isPresent()) {
         ActorRef resultSetActor = getContext().actorOf(Props.create(ResultSetIterator.class, self(), resultSetOptional.get()));
-        sender.tell(new ResultSetIterator.ResultSetHolder(resultSetActor), self());
+        sender.tell(new ResultSetHolder(resultSetActor), self());
       } else {
-        sender.tell(new JdbcConnector.NoResult(), self());
+        sender.tell(new NoResult(), self());
         //parent.tell(new FreeConnector(self() new InactivityCheck()), ActorRef.noSender());
         // TODO: tell parent to freeup connection.
       }
@@ -242,7 +243,7 @@ public class JdbcConnector extends HiveActor {
       // Something went wrong with executing the Statement
       // the statement will be closes and also the associated result set
       // TODO: mark the job as failed in the DB
-      sender.tell(new JdbcConnector.ExecutionFailed("Failed to execute Jdbc Statement", e), self());
+      sender.tell(new ExecutionFailed("Failed to execute Jdbc Statement", e), self());
     }
 
   }
@@ -326,24 +327,4 @@ public class JdbcConnector extends HiveActor {
     }
   }
 
-  public static class NoResult {
-  }
-
-  public static class ExecutionFailed {
-    private final Throwable error;
-    private final String message;
-
-    public ExecutionFailed(String message, Throwable error) {
-      this.message = message;
-      this.error = error;
-    }
-
-    public Throwable getError() {
-      return error;
-    }
-
-    public String getMessage() {
-      return message;
-    }
-  }
 }
