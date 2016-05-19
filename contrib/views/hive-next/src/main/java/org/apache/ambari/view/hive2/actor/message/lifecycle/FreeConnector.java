@@ -1,7 +1,6 @@
 package org.apache.ambari.view.hive2.actor.message.lifecycle;
 
 import akka.actor.ActorRef;
-import org.apache.ambari.view.hive2.actor.message.lifecycle.InactivityCheck;
 
 public class FreeConnector  {
 
