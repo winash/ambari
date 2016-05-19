@@ -32,19 +32,6 @@ public class DataStorageSupplier implements Supplier<Storage> {
      */
     @Override
     public Storage get() {
-        String fileName = context.getProperties().get("dataworker.storagePath");
-
-        Storage storageInstance;
-        if (fileName != null) {
-            LOG.debug("Using local storage in " + fileName + " to store data");
-            // If specifed, use LocalKeyValueStorage - key-value file based storage
-            storageInstance = new LocalKeyValueStorage(context);
-        } else {
-            LOG.debug("Using Persistence API to store data");
-            // If not specifed, use ambari-views Persistence API
-            storageInstance = new DataStoreStorage(context);
-        }
-        return storageInstance;
-
+        return new DataStoreStorage(context);
     }
 }

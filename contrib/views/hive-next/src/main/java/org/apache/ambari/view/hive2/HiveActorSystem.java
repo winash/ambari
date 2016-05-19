@@ -4,6 +4,8 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Inbox;
 import akka.actor.Props;
+import com.google.common.base.Optional;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import org.apache.ambari.view.hive2.actor.JdbcConnector;
 import org.apache.ambari.view.hive2.actor.OperationController;
@@ -12,6 +14,11 @@ import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
 import org.apache.ambari.view.hive2.actor.message.HiveJob;
 import org.apache.ambari.view.hive2.actor.message.SyncJob;
+import org.apache.ambari.view.hive2.internal.DataStorageSupplier;
+import org.apache.ambari.view.hive2.internal.DefaultSupplier;
+import org.apache.ambari.view.hive2.internal.HdfsApiSupplier;
+import org.apache.ambari.view.utils.hdfs.HdfsApi;
+import org.apache.curator.framework.imps.DefaultACLProvider;
 import scala.concurrent.duration.Duration;
 
 import java.util.List;
@@ -24,13 +31,21 @@ public class HiveActorSystem {
   public static final String HIVE_VIEW_SYSTEM = "HiveViewSystem";
   private final ActorSystem system = ActorSystem.create(HIVE_VIEW_SYSTEM);
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     HiveActorSystem hiveActorSystem = new HiveActorSystem();
-    ActorRef controller = hiveActorSystem.system.actorOf(Props.create(OperationController.class, null, hiveActorSystem.system),
+    ActorRef controller = hiveActorSystem.system.actorOf(Props.create(OperationController.class, hiveActorSystem.system,
+      new DefaultSupplier<HiveJdbcConnectionDelegate>(HiveJdbcConnectionDelegate.class),
+      new DataStorageSupplier(null),
+      new Supplier<Optional<HdfsApi>>() {
+        @Override
+        public Optional<HdfsApi> get() {
+          return Optional.absent();
+        }
+      }),
       "controller");
 
     Connect connect = new Connect("admin", "", "c6402.ambari.apache.org", 10000, Maps.<String, String>newHashMap());
-    HiveJob job = new SyncJob("admin", new String[] {"use default", "show tables"});
+    HiveJob job = new SyncJob("admin", new String[] {"use default", "show tables"}, null);
 //    HiveJob job = new SyncJob("admin", new String[] {"use default"});
 
     ExecuteJob executeJob = new ExecuteJob(connect, job);

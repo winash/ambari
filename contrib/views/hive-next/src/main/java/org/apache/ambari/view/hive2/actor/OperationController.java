@@ -192,11 +192,12 @@ public class OperationController extends HiveActor {
     subActor = getActorRefFromPool(username, subActor);
 
     if (subActor == null) {
-      if(!hdfsApiSupplier.get().isPresent()){
+      /*if(!hdfsApiSupplier.get().isPresent()){
         sender().tell(new JobRejected(username, ExecuteJob.SYNC_JOB_MARKER, "Failed to connect to HDFS."), ActorRef.noSender());
         return;
-      }
-      HdfsApi hdfsApi = hdfsApiSupplier.get().get();
+      }*/
+//      HdfsApi hdfsApi = hdfsApiSupplier.get().get();
+      HdfsApi hdfsApi = null;
       ViewContext viewContext = job.getViewContext();
 
       subActor = getContext().actorOf(
