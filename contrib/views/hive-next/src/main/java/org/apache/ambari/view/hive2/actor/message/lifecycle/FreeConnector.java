@@ -1,39 +1,35 @@
 package org.apache.ambari.view.hive2.actor.message.lifecycle;
 
-import akka.actor.ActorRef;
-
 public class FreeConnector  {
 
-  private boolean wasSync;
-  private ActorRef refToFree;
-  private String userName;
-  private String jobId;
+  private final String username;
+  private final String jobId;
+  private final boolean forAsync;
 
-  public FreeConnector(InactivityCheck message) {
-    userName = message.getUserName();
-    jobId = message.getJobId();
-    wasSync = message.isJobSync();
+  public FreeConnector(String username, String jobId, boolean forAsync) {
+    this.username = username;
+    this.jobId = jobId;
+    this.forAsync = forAsync;
+  }
+
+  public String getUsername() {
+    return username;
   }
 
   public String getJobId() {
     return jobId;
   }
 
-  public ActorRef getRefToFree() {
-    return refToFree;
+  public boolean isForAsync() {
+    return forAsync;
   }
 
-  public String getUserName() {
-    return userName;
-  }
-
-  public boolean wasJobSync() {
-    return wasSync;
-  }
-
-  public FreeConnector(ActorRef which,InactivityCheck message) {
-    refToFree = which;
-    wasSync = message.isJobSync();
-    userName = message.getUserName();
+  @Override
+  public String toString() {
+    return "FreeConnector{" +
+      "username='" + username + '\'' +
+      ", jobId='" + jobId + '\'' +
+      ", forAsync=" + forAsync +
+      '}';
   }
 }

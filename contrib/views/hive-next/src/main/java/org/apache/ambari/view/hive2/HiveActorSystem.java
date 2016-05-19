@@ -9,6 +9,7 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import org.apache.ambari.view.hive2.actor.OperationController;
 import org.apache.ambari.view.hive2.actor.ResultSetIterator;
+import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
 import org.apache.ambari.view.hive2.actor.message.HiveJob;
@@ -49,8 +50,29 @@ public class HiveActorSystem {
       "controller");
 
     Connect connect = new Connect("admin", "", "c6402.ambari.apache.org", 10000, Maps.<String, String>newHashMap());
-    HiveJob job = new SyncJob("admin", new String[] {"use default", "show tables"}, null);
-//    HiveJob job = new SyncJob("admin", new String[] {"use default"});
+    executeSync(hiveActorSystem, controller, connect);
+    executeASync(hiveActorSystem, controller, connect);
+  }
+
+  private static void executeASync(HiveActorSystem hiveActorSystem, ActorRef controller, Connect connect) {
+    System.out.println("\n\nExecuting async job...");
+    HiveJob job = new AsyncJob("10", "admin", new String[] {"use default", "select * from  geolocation_stage limit 10"}, null, null);
+    ExecuteJob executeJob = new ExecuteJob(connect, job);
+
+    Inbox inbox = Inbox.create(hiveActorSystem.system);
+    inbox.send(controller, executeJob);
+
+    try {
+      Object receive = inbox.receive(Duration.create(1, TimeUnit.MINUTES));
+      System.out.println(receive);
+    } catch (Throwable ex) {
+      System.out.println("Timeout.....");
+      ex.printStackTrace();
+    }
+  }
+
+  private static void executeSync(HiveActorSystem hiveActorSystem, ActorRef controller, Connect connect) {
+    HiveJob job = new SyncJob("admin", new String[] {"use default"}, null);
 
     ExecuteJob executeJob = new ExecuteJob(connect, job);
 

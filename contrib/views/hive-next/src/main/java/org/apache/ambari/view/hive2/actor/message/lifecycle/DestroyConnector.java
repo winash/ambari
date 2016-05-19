@@ -1,23 +1,14 @@
 package org.apache.ambari.view.hive2.actor.message.lifecycle;
 
-public class DestroyConnector  {
-
+public class DestroyConnector {
   private final String username;
-  private boolean wasSync;
-  private akka.actor.ActorRef toDestory;
-  private String jobId;
+  private final String jobId;
+  private final boolean forAsync;
 
-  public DestroyConnector(String username, String jobId) {
+  public DestroyConnector(String username, String jobId, boolean forAsync) {
     this.username = username;
-
     this.jobId = jobId;
-  }
-
-  public DestroyConnector(akka.actor.ActorRef which, String userName) {
-    this.username = userName;
-    toDestory = which;
-    this.wasSync = true;
-
+    this.forAsync = forAsync;
   }
 
   public String getUsername() {
@@ -28,11 +19,16 @@ public class DestroyConnector  {
     return jobId;
   }
 
-  public boolean WasJobSync() {
-    return wasSync;
+  public boolean isForAsync() {
+    return forAsync;
   }
 
-  public akka.actor.ActorRef getToDestory() {
-    return toDestory;
+  @Override
+  public String toString() {
+    return "DestroyConnector{" +
+      "username='" + username + '\'' +
+      ", jobId='" + jobId + '\'' +
+      ", forAsync=" + forAsync +
+      '}';
   }
 }

@@ -12,6 +12,7 @@ import org.apache.ambari.view.hive2.actor.message.SyncJob;
 import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
 import org.apache.ambari.view.hive2.actor.message.job.NoResult;
 import org.apache.ambari.view.hive2.actor.message.job.ResultSetHolder;
+import org.apache.ambari.view.hive2.actor.message.lifecycle.DestroyConnector;
 import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveConnection;
@@ -60,7 +61,7 @@ public class SyncJdbcConnector extends JdbcConnector {
         sender.tell(new ResultSetHolder(resultSetActor), self());
       } else {
         sender.tell(new NoResult(), self());
-        //parent.tell(new FreeConnector(self() new InactivityCheck()), ActorRef.noSender());
+        parent.tell(new DestroyConnector(username, jobId, isAsync()), self());
         // TODO: tell parent to freeup connection.
       }
 

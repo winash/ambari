@@ -101,9 +101,9 @@ public abstract class JdbcConnector extends HiveActor {
     if (message instanceof Connect) {
       connect((Connect) message);
     } else if (message instanceof InactivityCheck) {
-      checkInactivity((InactivityCheck) message);
+      checkInactivity();
     } else if (message instanceof TerminateInactivityCheck) {
-      checkTerminationInactivity((TerminateInactivityCheck)message);
+      checkTerminationInactivity();
     } else {
       handleJobMessage(hiveMessage);
     }
@@ -137,7 +137,7 @@ public abstract class JdbcConnector extends HiveActor {
 
     this.terminateActorScheduler = system.scheduler().schedule(
       Duration.Zero(), Duration.create(60 * 1000, TimeUnit.MILLISECONDS),
-      this.getSelf(), new TerminateInactivityCheck(message), system.dispatcher(), null);
+      this.getSelf(), new TerminateInactivityCheck(), system.dispatcher(), null);
 
   }
 
@@ -153,7 +153,7 @@ public abstract class JdbcConnector extends HiveActor {
 
   }
 
-  private void checkInactivity(InactivityCheck message) {
+  private void checkInactivity() {
     long current = System.currentTimeMillis();
     long l = current - lastActivityTimestamp;
     System.out.println(l);
@@ -171,16 +171,18 @@ public abstract class JdbcConnector extends HiveActor {
       resultHolder = null;
       // Tell the router actor to remove the reference from its cache
       // Tell the router actor to render this connectable actor as free.
-      if(message.isJobSync()){
-        parent.tell(new FreeConnector(self(),message), this.self());
-      }else {
-        parent.tell(new FreeConnector(message), this.self());
-      }
+
+      parent.tell(new FreeConnector(username, jobId, isAsync()), self());
+
       inactivityScheduler.cancel();
     }
   }
 
-  private void checkTerminationInactivity(TerminateInactivityCheck message) {
+  private void checkTerminationInactivity() {
+    if (!isAsync()) {
+      terminateActorScheduler.cancel(); // Will not use times to terminate. Will terminate after the job is finished.
+      return;
+    }
     long current = System.currentTimeMillis();
     if ((current - lastActivityTimestamp) > MAX_TERMINATION_INACTIVITY_INTERVAL) {
       // Stop all sub-actors if any currently live
@@ -196,12 +198,8 @@ public abstract class JdbcConnector extends HiveActor {
         resultHolder = null;
       }
 
-      if(message.isJobSync()){
-        parent.tell(new DestroyConnector(self(),message.getUserName()), this.self());
-      } else {
-        parent.tell(new DestroyConnector(message.getUserName(),message.getJobId()), this.self());
+      parent.tell(new DestroyConnector(username, jobId, isAsync()), this.self());
 
-      }
       self().tell(PoisonPill.getInstance(), ActorRef.noSender());
     }
   }

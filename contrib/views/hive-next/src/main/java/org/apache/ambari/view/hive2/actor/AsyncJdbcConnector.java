@@ -101,6 +101,6 @@ public class AsyncJdbcConnector extends JdbcConnector {
     // Start Inactivity timer to close the statement
     this.inactivityScheduler = system.scheduler().schedule(
       Duration.Zero(), Duration.create(15 * 1000, TimeUnit.MILLISECONDS),
-      this.self(), new InactivityCheck(message), system.dispatcher(), null);
+      this.self(), new InactivityCheck(), system.dispatcher(), null);
   }
 }

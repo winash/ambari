@@ -81,37 +81,41 @@ public class OperationController extends HiveActor {
 
     if (message instanceof ExecuteJob) {
       ExecuteJob job = (ExecuteJob) message;
-      if(job.getJob().getType() == HiveJob.Type.ASYNC) {
-        sendJob(job.getConnect(), (AsyncJob)job.getJob());
+      if (job.getJob().getType() == HiveJob.Type.ASYNC) {
+        sendJob(job.getConnect(), (AsyncJob) job.getJob());
       } else if (job.getJob().getType() == HiveJob.Type.SYNC) {
         sendSyncJob(job.getConnect(), (SyncJob) job.getJob());
       }
     }
 
-    if(message instanceof ResultReady){
-      updateResultContainer((ResultReady)message);
+    if (message instanceof ResultReady) {
+      updateResultContainer((ResultReady) message);
     }
 
-    if(message instanceof GetResultHolder){
-      getResultHolder((GetResultHolder)message);
+    if (message instanceof GetResultHolder) {
+      getResultHolder((GetResultHolder) message);
     }
 
-    if(message instanceof FetchResult){
-      fetchResultActorRef((FetchResult)message);
+    if (message instanceof FetchResult) {
+      fetchResultActorRef((FetchResult) message);
 
     }
 
     if (message instanceof FreeConnector) {
+      System.out.println(getSender());
+      System.out.println(message);
       freeConnector((FreeConnector) message);
     }
 
     if (message instanceof DestroyConnector) {
+      System.out.println(getSender());
+      System.out.println(message);
       destroyConnector((DestroyConnector) message);
     }
   }
 
   private void getResultHolder(GetResultHolder message) {
-    sender().tell(busyConnections.get(message.getUserName()).get(message.getJobId()).result,self());
+    sender().tell(busyConnections.get(message.getUserName()).get(message.getJobId()).result, self());
   }
 
   private void updateResultContainer(ResultReady message) {
@@ -127,7 +131,7 @@ public class OperationController extends HiveActor {
     String username = message.getUsername();
     String jobId = message.getJobId();
     Either<ActorRef, ExecutionResult> result = busyConnections.get(username).get(jobId).result;
-    sender().tell(result,self());
+    sender().tell(result, self());
 
   }
 
@@ -139,21 +143,22 @@ public class OperationController extends HiveActor {
     subActor = getActorRefFromPool(username, subActor);
 
     if (subActor == null) {
-      if(!hdfsApiSupplier.get().isPresent()){
-        sender().tell(new JobRejected(username, jobId, "Failed to connect to HDFS."), ActorRef.noSender());
+      /*if (!hdfsApiSupplier.get().isPresent()) {
+        sender().tell(new JobRejected(username, jobId, "Failed to connect to Hive."), ActorRef.noSender());
         return;
-      }
-      HdfsApi hdfsApi = hdfsApiSupplier.get().get();
+      }*/
+      //HdfsApi hdfsApi = hdfsApiSupplier.get().get();
+      HdfsApi hdfsApi = null;
       ViewContext viewContext = job.getViewContext();
       subActor = getContext().actorOf(
-        Props.create(AsyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(),storageSupplier.get()),
+        Props.create(AsyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(), storageSupplier.get()),
         username + ":" + UUID.randomUUID().toString());
 
     }
 
     if (busyConnections.containsKey(username)) {
       Map<String, ActorRefResultContainer> actors = busyConnections.get(username);
-      if(!actors.containsKey(jobId)) {
+      if (!actors.containsKey(jobId)) {
         actors.put(jobId, new ActorRefResultContainer(subActor));
       } else {
         // Reject this as with the same jobId one connection is already in progress.
@@ -174,9 +179,9 @@ public class OperationController extends HiveActor {
   }
 
   private ActorRef getActorRefFromPool(String username, ActorRef subActor) {
-    if(availableConnections.containsKey(username)) {
+    if (availableConnections.containsKey(username)) {
       Queue<ActorRef> availableActors = availableConnections.get(username);
-      if(availableActors.size() != 0) {
+      if (availableActors.size() != 0) {
         subActor = availableActors.poll();
       }
     } else {
@@ -201,7 +206,7 @@ public class OperationController extends HiveActor {
       ViewContext viewContext = job.getViewContext();
 
       subActor = getContext().actorOf(
-        Props.create(SyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(),storageSupplier.get()),
+        Props.create(SyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(), storageSupplier.get()),
         username + ":" + UUID.randomUUID().toString());
     }
 
@@ -226,34 +231,34 @@ public class OperationController extends HiveActor {
 
   private void destroyConnector(DestroyConnector message) {
     ActorRef sender = getSender();
-    if(!message.WasJobSync()) {
+    if (message.isForAsync()) {
       removeFromBusyPool(message.getUsername(), message.getJobId());
     } else {
-      removeFromSyncPool(message.getUsername(),message.getToDestory());
+      removeFromSyncPool(message.getUsername(), sender);
     }
     removeFromAvailable(message.getUsername(), sender);
   }
 
   private void freeConnector(FreeConnector message) {
-    if(!message.wasJobSync()) {
-      Optional<ActorRef> refOptional = removeFromBusyPool(message.getUserName(), message.getJobId());
+    ActorRef sender = getSender();
+    if (message.isForAsync()) {
+      Optional<ActorRef> refOptional = removeFromBusyPool(message.getUsername(), message.getJobId());
       if (refOptional.isPresent()) {
-        addToAvailable(message.getUserName(), refOptional.get());
+        addToAvailable(message.getUsername(), refOptional.get());
       }
       return;
     }
     // Was a sync job, remove from sync pool
-    Optional<ActorRef> refOptional = removeFromSyncPool(message.getUserName(),message.getRefToFree());
+    Optional<ActorRef> refOptional = removeFromSyncPool(message.getUsername(), sender);
     if (refOptional.isPresent()) {
-      addToAvailable(message.getUserName(), refOptional.get());
+      addToAvailable(message.getUsername(), refOptional.get());
     }
-
 
 
   }
 
   private Optional<ActorRef> removeFromSyncPool(String userName, ActorRef refToFree) {
-    if(syncBusyConnections.containsKey(userName)){
+    if (syncBusyConnections.containsKey(userName)) {
       Set<ActorRef> actorRefs = syncBusyConnections.get(userName);
       actorRefs.remove(refToFree);
     }
@@ -264,7 +269,7 @@ public class OperationController extends HiveActor {
     ActorRef ref = null;
     if (busyConnections.containsKey(username)) {
       Map<String, ActorRefResultContainer> actors = busyConnections.get(username);
-      if(actors.containsKey(jobId)) {
+      if (actors.containsKey(jobId)) {
         ref = actors.get(jobId).actorRef;
         actors.remove(jobId);
       }
@@ -282,7 +287,7 @@ public class OperationController extends HiveActor {
   }
 
   private void removeFromAvailable(String username, ActorRef sender) {
-    if(!availableConnections.containsKey(username)) {
+    if (!availableConnections.containsKey(username)) {
       return;
     }
     Queue<ActorRef> actors = availableConnections.get(username);
@@ -292,7 +297,7 @@ public class OperationController extends HiveActor {
   private static class ActorRefResultContainer {
 
     ActorRef actorRef;
-    Either<ActorRef,ExecutionResult> result = Either.none();
+    Either<ActorRef, ExecutionResult> result = Either.none();
 
     public ActorRefResultContainer(ActorRef actorRef) {
       this.actorRef = actorRef;
