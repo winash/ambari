@@ -49,7 +49,7 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
   }
 
   @Override
-  public Optional<HiveResult> executeSync(HiveConnection connection, HiveJob job) throws SQLException {
+  public Optional<ResultSet> executeSync(HiveConnection connection, HiveJob job) throws SQLException {
     try {
       Statement statement = connection.createStatement();
       currentStatement = (HiveStatement) statement;
@@ -63,8 +63,8 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
 
       if (hasResultSet) {
         ResultSet resultSet = statement.getResultSet();
-        HiveResult result = new HiveResult(resultSet);
-        return Optional.of(result);
+        //HiveResult result = new HiveResult(resultSet);
+        return Optional.of(resultSet);
       } else {
         return Optional.absent();
       }

@@ -11,7 +11,7 @@ import java.sql.SQLException;
 
 public interface ConnectionDelegate {
   Optional<ResultSet> execute(HiveConnection connection, HiveJob job) throws SQLException;
-  Optional<HiveResult> executeSync(HiveConnection connection, HiveJob job) throws SQLException;
+  Optional<ResultSet> executeSync(HiveConnection connection, HiveJob job) throws SQLException;
   Optional<ResultSet> getCurrentResultSet();
   Optional<HiveStatement> getCurrentStatement();
   boolean closeResultSet() throws SQLException;

@@ -216,7 +216,7 @@ public class OperationController extends HiveActor {
     // Termination requires that the ref is known in case of sync jobs
     connect.setSync();
     subActor.tell(connect, self());
-    subActor.tell(job, self());
+    subActor.tell(job, sender());
   }
 
   private HdfsApi getHdfsApi(ViewContext viewContext) throws HdfsApiException {
