@@ -65,7 +65,7 @@ public class HiveConnectionWrapper implements Connectable,Supplier<HiveConnectio
   }
 
   public Optional<HiveConnection> getConnection() {
-    return Optional.of(connection);
+    return Optional.fromNullable(connection);
   }
 
   @Override
