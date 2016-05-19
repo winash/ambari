@@ -4,37 +4,24 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Cancellable;
 import akka.actor.PoisonPill;
-import akka.actor.Props;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.persistence.Storage;
 import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
 import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
-import org.apache.ambari.view.hive2.actor.message.AssignResultSet;
 import org.apache.ambari.view.hive2.actor.message.Connect;
-import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
-import org.apache.ambari.view.hive2.actor.message.AsyncJob;
-import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
-import org.apache.ambari.view.hive2.actor.message.HiveJob;
+import org.apache.ambari.view.hive2.actor.message.lifecycle.DestroyConnector;
+import org.apache.ambari.view.hive2.actor.message.lifecycle.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
-import org.apache.ambari.view.hive2.actor.message.SyncJob;
-import org.apache.ambari.view.hive2.actor.message.FreeConnector;
-import org.apache.ambari.view.hive2.actor.message.InactivityCheck;
-import org.apache.ambari.view.hive2.actor.message.StartLogAggregation;
-import org.apache.ambari.view.hive2.actor.message.TerminateInactivityCheck;
-import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
-import org.apache.ambari.view.hive2.actor.message.job.NoResult;
-import org.apache.ambari.view.hive2.actor.message.job.ResultSetHolder;
-import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
+import org.apache.ambari.view.hive2.actor.message.lifecycle.InactivityCheck;
+import org.apache.ambari.view.hive2.actor.message.lifecycle.TerminateInactivityCheck;
 import org.apache.ambari.view.hive2.internal.Connectable;
 import org.apache.ambari.view.hive2.internal.ConnectionException;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
-import org.apache.hive.jdbc.HiveConnection;
 import org.apache.hive.jdbc.HiveStatement;
 import scala.concurrent.duration.Duration;
 
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
 
@@ -94,6 +81,8 @@ public abstract class JdbcConnector extends HiveActor {
    * true if the currently executing job is async job.
    */
   private boolean async = true;
+  protected String username;
+  protected String jobId;
 
   public JdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent,
                        ConnectionDelegate connectionDelegate, Storage storage) {
@@ -121,8 +110,18 @@ public abstract class JdbcConnector extends HiveActor {
   }
 
   protected abstract void handleJobMessage(HiveMessage message);
+  protected abstract boolean isAsync();
+
+  protected Optional<String> getJobId() {
+    return Optional.fromNullable(jobId);
+  };
+
+  protected Optional<String> getUsername() {
+    return Optional.fromNullable(username);
+  }
 
   private void connect(Connect message) {
+    this.username = message.getUsername();
     // check the connectable
     if (connectable == null) {
       connectable = message.getConnectable();

@@ -1,4 +1,4 @@
-package org.apache.ambari.view.hive2.actor.message;
+package org.apache.ambari.view.hive2.actor.message.lifecycle;
 
 
 public class TerminateInactivityCheck {

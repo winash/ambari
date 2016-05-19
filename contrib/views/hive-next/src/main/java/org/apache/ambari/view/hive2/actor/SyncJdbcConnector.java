@@ -7,8 +7,6 @@ import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.persistence.Storage;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
-import org.apache.ambari.view.hive2.actor.message.AsyncJob;
-import org.apache.ambari.view.hive2.actor.message.HiveJob;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.SyncJob;
 import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
@@ -36,6 +34,11 @@ public class SyncJdbcConnector extends JdbcConnector {
     if(job instanceof SyncJob) {
       execute((SyncJob) job);
     }
+  }
+
+  @Override
+  protected boolean isAsync() {
+    return false;
   }
 
   protected void execute(SyncJob job) {

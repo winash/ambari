@@ -1,4 +1,7 @@
-package org.apache.ambari.view.hive2.actor.message;
+package org.apache.ambari.view.hive2.actor.message.lifecycle;
+
+import org.apache.ambari.view.hive2.actor.message.AsyncJob;
+import org.apache.ambari.view.hive2.actor.message.SyncJob;
 
 public class InactivityCheck {
 
