@@ -5,7 +5,8 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
-import org.apache.ambari.view.hive.persistence.DataStoreStorage;
+import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive.persistence.Storage;
 import org.apache.ambari.view.hive2.HiveJdbcConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.Connect;
@@ -23,6 +24,7 @@ import org.apache.ambari.view.hive2.internal.Either;
 import org.apache.ambari.view.hive2.internal.ExecutionResult;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.ambari.view.utils.hdfs.HdfsApiException;
+import org.apache.ambari.view.utils.hdfs.HdfsUtil;
 import org.apache.commons.collections4.map.HashedMap;
 
 import java.util.HashMap;
@@ -40,7 +42,9 @@ import java.util.UUID;
 public class OperationController extends HiveActor {
 
   private final ActorSystem system;
-  private final Supplier<HiveJdbcConnectionDelegate> connectionDelegateSupplier;
+  private final Supplier<HiveJdbcConnectionDelegate> connectionSupplier;
+  private final Supplier<Storage> storageSupplier;
+  private final Supplier<Optional<HdfsApi>> hdfsApiSupplier;
 
   /**
    * Store the connection per user which are currently not working
@@ -58,9 +62,14 @@ public class OperationController extends HiveActor {
    */
   private final Map<String, Set<ActorRef>> syncBusyConnections;
 
-  public OperationController(ActorSystem system, Supplier<HiveJdbcConnectionDelegate> connectionDelegateSupplier) {
+  public OperationController(ActorSystem system,
+                             Supplier<HiveJdbcConnectionDelegate> connectionSupplier,
+                             Supplier<Storage> storageSupplier,
+                             Supplier<Optional<HdfsApi>> hdfsApiSupplier) {
     this.system = system;
-    this.connectionDelegateSupplier = connectionDelegateSupplier;
+    this.connectionSupplier = connectionSupplier;
+    this.storageSupplier = storageSupplier;
+    this.hdfsApiSupplier = hdfsApiSupplier;
     this.availableConnections = new HashMap<>();
     this.busyConnections = new HashedMap<>();
     this.syncBusyConnections = new HashMap<>();
@@ -127,28 +136,17 @@ public class OperationController extends HiveActor {
     String jobId = job.getJobId();
     ActorRef subActor = null;
     // Check if there is available actors to process this
-    if(availableConnections.containsKey(username)) {
-      Queue<ActorRef> availableActors = availableConnections.get(username);
-      if(availableActors.size() != 0) {
-        subActor = availableActors.poll();
-      }
-    } else {
-      availableConnections.put(username, new LinkedList<ActorRef>());
-    }
+    subActor = getActorRefFromPool(username, subActor);
 
     if (subActor == null) {
-
-      HdfsApi hdfsApi;
-      try {
-        hdfsApi = getHdfsApi();
-      } catch (HdfsApiException e) {
-        // TODO: LOG Here
+      if(!hdfsApiSupplier.get().isPresent()){
         sender().tell(new JobRejected(username, jobId, "Failed to connect to HDFS."), ActorRef.noSender());
         return;
       }
-      //TODO:  pull the view context from message
+      HdfsApi hdfsApi = hdfsApiSupplier.get().get();
+      ViewContext viewContext = job.getViewContext();
       subActor = getContext().actorOf(
-        Props.create(JdbcConnector.class,null, hdfsApi, system, self(),connectionDelegateSupplier.get() ,new DataStoreStorage(null)),
+        Props.create(JdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(),storageSupplier.get()),
         username + ":" + UUID.randomUUID().toString());
 
     }
@@ -175,10 +173,7 @@ public class OperationController extends HiveActor {
     sender().tell(new JobSubmitted(username, jobId), ActorRef.noSender());
   }
 
-  private void sendSyncJob(Connect connect, SyncJob job) {
-    String username = job.getUsername();
-    ActorRef subActor = null;
-    // Check if there is available actors to process this
+  private ActorRef getActorRefFromPool(String username, ActorRef subActor) {
     if(availableConnections.containsKey(username)) {
       Queue<ActorRef> availableActors = availableConnections.get(username);
       if(availableActors.size() != 0) {
@@ -187,20 +182,25 @@ public class OperationController extends HiveActor {
     } else {
       availableConnections.put(username, new LinkedList<ActorRef>());
     }
+    return subActor;
+  }
+
+  private void sendSyncJob(Connect connect, SyncJob job) {
+    String username = job.getUsername();
+    ActorRef subActor = null;
+    // Check if there is available actors to process this
+    subActor = getActorRefFromPool(username, subActor);
 
     if (subActor == null) {
-      HdfsApi hdfsApi;
-      try {
-        hdfsApi = getHdfsApi();
-      } catch (HdfsApiException e) {
-        // TODO: LOG Here
+      if(!hdfsApiSupplier.get().isPresent()){
         sender().tell(new JobRejected(username, ExecuteJob.SYNC_JOB_MARKER, "Failed to connect to HDFS."), ActorRef.noSender());
         return;
       }
+      HdfsApi hdfsApi = hdfsApiSupplier.get().get();
+      ViewContext viewContext = job.getViewContext();
 
-      //TODO:pull the view context out of the message
       subActor = getContext().actorOf(
-        Props.create(JdbcConnector.class,null, hdfsApi, system, self(), new HiveJdbcConnectionDelegate(),new DataStoreStorage(null)),
+        Props.create(JdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(),storageSupplier.get()),
         username + ":" + UUID.randomUUID().toString());
     }
 
@@ -219,9 +219,8 @@ public class OperationController extends HiveActor {
     subActor.tell(job, self());
   }
 
-  private HdfsApi getHdfsApi() throws HdfsApiException {
-    return null;
-    //return HdfsUtil.connectToHDFSApi(viewContext);
+  private HdfsApi getHdfsApi(ViewContext viewContext) throws HdfsApiException {
+    return HdfsUtil.connectToHDFSApi(viewContext);
   }
 
   private void destroyConnector(DestroyConnector message) {

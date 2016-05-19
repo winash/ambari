@@ -1,24 +1,24 @@
 package org.apache.ambari.view.hive2.actor.message;
 
 import com.google.common.collect.ImmutableList;
+import org.apache.ambari.view.ViewContext;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Created by dbhowmick on 5/17/16.
- */
-public class HiveJob {
+public abstract class HiveJob {
 
   private final String username;
   private final String[] statements;
   private final Type type;
+  private final ViewContext viewContext;
 
-  public HiveJob(Type type, String[] statements, String username) {
+  public HiveJob(Type type, String[] statements, String username,ViewContext viewContext) {
     this.type = type;
     this.username = username;
     this.statements = statements;
+    this.viewContext = viewContext;
   }
 
   public String getUsername() {
@@ -53,6 +53,10 @@ public class HiveJob {
    */
   public String getAsyncStatement() {
     return statements[statements.length - 1];
+  }
+
+  public ViewContext getViewContext() {
+    return viewContext;
   }
 
 

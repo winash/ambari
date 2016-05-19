@@ -1,10 +1,9 @@
 package org.apache.ambari.view.hive2.actor.message;
 
-/**
- * Created by dbhowmick on 5/17/16.
- */
+import org.apache.ambari.view.ViewContext;
+
 public class SyncJob extends HiveJob {
-  public SyncJob(String username, String[] statements) {
-    super(Type.SYNC, statements, username);
+  public SyncJob(String username, String[] statements,ViewContext viewContext) {
+    super(Type.SYNC, statements, username,viewContext);
   }
 }
