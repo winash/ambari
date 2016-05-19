@@ -146,7 +146,7 @@ public class OperationController extends HiveActor {
       HdfsApi hdfsApi = hdfsApiSupplier.get().get();
       ViewContext viewContext = job.getViewContext();
       subActor = getContext().actorOf(
-        Props.create(JdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(),storageSupplier.get()),
+        Props.create(AsyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(),storageSupplier.get()),
         username + ":" + UUID.randomUUID().toString());
 
     }
@@ -201,7 +201,7 @@ public class OperationController extends HiveActor {
       ViewContext viewContext = job.getViewContext();
 
       subActor = getContext().actorOf(
-        Props.create(JdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(),storageSupplier.get()),
+        Props.create(SyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(),storageSupplier.get()),
         username + ":" + UUID.randomUUID().toString());
     }
 

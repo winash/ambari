@@ -1,14 +1,12 @@
 package org.apache.ambari.view.hive2.actor;
 
 import akka.actor.ActorRef;
-import akka.actor.UntypedActor;
 import com.google.common.collect.Lists;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.job.FetchFailed;
 import org.apache.ambari.view.hive2.actor.message.job.Next;
 import org.apache.ambari.view.hive2.actor.message.job.NoMoreItems;
 import org.apache.ambari.view.hive2.actor.message.job.Result;
-import org.apache.hadoop.yarn.webapp.hamlet.HamletSpec;
 
 import java.math.RoundingMode;
 import java.sql.ResultSet;
@@ -79,7 +77,7 @@ public class ResultSetIterator extends HiveActor {
         sender().tell(new NoMoreItems(), self());
         // TODO: Tell the parent to clean up
       } else {
-        sender().tell(new Result(rows), self());
+        sender().tell(new Result(rows, colNames), self());
       }
 
     } catch (SQLException ex) {

@@ -16,6 +16,7 @@ import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
+import org.apache.ambari.view.hive2.actor.message.HiveJob;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.SyncJob;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
@@ -41,7 +42,7 @@ import java.util.concurrent.TimeUnit;
  * Wraps one Jdbc connection per user, per instance. This is used to delegate execute the statements and
  * creates child actors to delegate the resultset extraction, YARN/ATS querying for ExecuteJob info and Log Aggregation
  */
-public class JdbcConnector extends HiveActor {
+public abstract class JdbcConnector extends HiveActor {
 
   /**
    * Interval for maximum inactivity allowed
@@ -53,9 +54,9 @@ public class JdbcConnector extends HiveActor {
    */
   private static final long MAX_TERMINATION_INACTIVITY_INTERVAL = 10 * 60 * 1000;
 
-  private final ViewContext viewContext;
-  private final ActorSystem system;
-  private final Storage storage;
+  protected final ViewContext viewContext;
+  protected final ActorSystem system;
+  protected final Storage storage;
 
   /**
    * Keeps track of the timestamp when the last activity has happened. This is
@@ -67,21 +68,21 @@ public class JdbcConnector extends HiveActor {
   /**
    * Akka scheduler to tick at an interval to deal with inactivity of this actor
    */
-  private Cancellable inactivityScheduler;
+  protected Cancellable inactivityScheduler;
 
   /**
    * Akka scheduler to tick at an interval to deal with the inactivity after which
    * the actor should be killed and connectable should be released
    */
-  private Cancellable terminateActorScheduler;
+  protected Cancellable terminateActorScheduler;
 
-  private Connectable connectable = null;
-  private final ConnectionDelegate connectionDelegate;
-  private final ActorRef parent;
-  private final HdfsApi hdfsApi;
+  protected Connectable connectable = null;
+  protected final ConnectionDelegate connectionDelegate;
+  protected final ActorRef parent;
+  protected final HdfsApi hdfsApi;
 
   // The result Holder assigned to this Connector
-  private ActorRef resultHolder;
+  protected ActorRef resultHolder;
 
 
   /**
@@ -110,25 +111,16 @@ public class JdbcConnector extends HiveActor {
     Object message = hiveMessage.getMessage();
     if (message instanceof Connect) {
       connect((Connect) message);
-    }
-
-    if (message instanceof AsyncJob) {
-      executeJob((AsyncJob) message);
-    }
-
-    if (message instanceof SyncJob) {
-      executeSyncJob((SyncJob) message);
-    }
-
-    if (message instanceof InactivityCheck) {
+    } else if (message instanceof InactivityCheck) {
       checkInactivity((InactivityCheck) message);
-    }
-
-    if (message instanceof TerminateInactivityCheck) {
+    } else if (message instanceof TerminateInactivityCheck) {
       checkTerminationInactivity((TerminateInactivityCheck)message);
+    } else {
+      handleJobMessage(hiveMessage);
     }
-
   }
+
+  protected abstract void handleJobMessage(HiveMessage message);
 
   private void connect(Connect message) {
     // check the connectable
@@ -147,104 +139,6 @@ public class JdbcConnector extends HiveActor {
     this.terminateActorScheduler = system.scheduler().schedule(
       Duration.Zero(), Duration.create(60 * 1000, TimeUnit.MILLISECONDS),
       this.getSelf(), new TerminateInactivityCheck(message), system.dispatcher(), null);
-
-  }
-
-
-
-  private void executeJob(AsyncJob message) {
-    System.out.println("Executing job" + self());
-    if (connectable == null) {
-      throw new NotConnectedException("Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive");
-    }
-
-    Optional<HiveConnection> connectionOptional = connectable.getConnection();
-    if (!connectionOptional.isPresent()) {
-      throw new NotConnectedException("Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive");
-    }
-
-    try {
-
-      this.executing = true;
-      this.async = true;
-
-      Optional<ResultSet> resultSetOptional = connectionDelegate.execute(connectionOptional.get(), message);
-      Optional<HiveStatement> currentStatement = connectionDelegate.getCurrentStatement();
-      // There should be a result set, which either has a result set, or an empty value
-      // for operations which do not return anything
-      resultHolder = getContext().actorOf(
-              Props.create(ResultHolder.class, viewContext, system,self(),parent,message),
-              message.getUsername() + ":" + message.getJobId() + "-resultsHolder");
-
-      ActorRef logAggregator = getContext().actorOf(
-        Props.create(LogAggregator.class, system, hdfsApi, currentStatement.get(), message.getLogFile()), message.getUsername() + ":" + message.getJobId() + "-logAggregator"
-      );
-
-      if (resultSetOptional.isPresent()) {
-        // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
-        // tell the result holder to assign the result set for further operations
-        resultHolder.tell(new AssignResultSet(resultSetOptional), self());
-
-        // Start a actor to query ATS
-      } else {
-        // Case when this is an Update/query with no results
-        // Wait for operation to complete and add results;
-        resultHolder.tell(new ExecuteQuery(currentStatement),self());
-
-      }
-      // Start a actor to query log
-      logAggregator.tell(new StartLogAggregation(), self());
-      Optional<HiveStatement> statementOptional = currentStatement;
-
-      if (statementOptional.isPresent()) {
-//        updateGuidInJob(jobId, statementOptional.get());
-        // Wait for the result in the Holder and update HDFS with the error log if any
-
-      }
-
-    } catch (SQLException e) {
-      //TODO: HandleExceptions,
-    }
-
-    // Start Inactivity timer to close the statement
-    this.inactivityScheduler = system.scheduler().schedule(
-      Duration.Zero(), Duration.create(15 * 1000, TimeUnit.MILLISECONDS),
-      this.self(), new InactivityCheck(message), system.dispatcher(), null);
-  }
-
-  private void executeSyncJob(SyncJob job) {
-    ActorRef sender = this.getSender();
-    if (connectable == null) {
-      throw new NotConnectedException("Cannot execute sync job for user: " + job.getUsername() + ". Not connected to Hive");
-    }
-
-    Optional<HiveConnection> connectionOptional = connectable.getConnection();
-    if (!connectionOptional.isPresent()) {
-      throw new NotConnectedException("Cannot execute sync job for user: " + job.getUsername() + ". Not connected to Hive");
-    }
-
-    try {
-
-      this.executing = true;
-      this.async = false;
-
-      Optional<ResultSet> resultSetOptional = connectionDelegate.executeSync(connectionOptional.get(), job);
-      if(resultSetOptional.isPresent()) {
-        ActorRef resultSetActor = getContext().actorOf(Props.create(ResultSetIterator.class, self(), resultSetOptional.get()));
-        sender.tell(new ResultSetHolder(resultSetActor), self());
-      } else {
-        sender.tell(new NoResult(), self());
-        //parent.tell(new FreeConnector(self() new InactivityCheck()), ActorRef.noSender());
-        // TODO: tell parent to freeup connection.
-      }
-
-
-    } catch (SQLException e) {
-      // Something went wrong with executing the Statement
-      // the statement will be closes and also the associated result set
-      // TODO: mark the job as failed in the DB
-      sender.tell(new ExecutionFailed("Failed to execute Jdbc Statement", e), self());
-    }
 
   }
 
