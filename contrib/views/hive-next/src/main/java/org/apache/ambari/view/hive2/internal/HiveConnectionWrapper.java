@@ -1,6 +1,7 @@
 package org.apache.ambari.view.hive2.internal;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Supplier;
 import org.apache.hive.jdbc.HiveConnection;
 
 import java.sql.Connection;
@@ -12,7 +13,7 @@ import java.sql.SQLException;
  * This class only provides a connection over which
  * callers should run their own JDBC statements
  */
-public class HiveConnectionWrapper implements Connectable {
+public class HiveConnectionWrapper implements Connectable,Supplier<HiveConnection> {
 
   private static String DRIVER_NAME = "org.apache.hive.jdbc.HiveDriver";
   private final String jdbcUrl;
@@ -77,4 +78,14 @@ public class HiveConnectionWrapper implements Connectable {
     }
   }
 
+  /**
+   * Retrieves an instance of the appropriate type. The returned object may or
+   * may not be a new instance, depending on the implementation.
+   *
+   * @return an instance of the appropriate type
+   */
+  @Override
+  public HiveConnection get() {
+    return null;
+  }
 }

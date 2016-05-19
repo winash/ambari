@@ -18,6 +18,7 @@ import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
 import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
+import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.SyncJob;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.InactivityCheck;
@@ -43,12 +44,12 @@ import java.util.concurrent.TimeUnit;
  * Wraps one Jdbc connection per user, per instance. This is used to delegate execute the statements and
  * creates child actors to delegate the resultset extraction, YARN/ATS querying for ExecuteJob info and Log Aggregation
  */
-public class JdbcConnector extends UntypedActor {
+public class JdbcConnector extends HiveActor {
 
   /**
    * Interval for maximum inactivity allowed
    */
-  private final static long MAX_INACTIVITY_INTERVAL = 1 * 10 * 1000;
+  private final static long MAX_INACTIVITY_INTERVAL = 5 * 10 * 1000;
 
   /**
    * Interval for maximum inactivity allowed before termination
@@ -108,7 +109,8 @@ public class JdbcConnector extends UntypedActor {
   }
 
   @Override
-  public void onReceive(Object message) throws Exception {
+  public void handleMessage(HiveMessage hiveMessage) {
+    Object message = hiveMessage.getMessage();
     if (message instanceof Connect) {
       connect((Connect) message);
     }
@@ -134,7 +136,7 @@ public class JdbcConnector extends UntypedActor {
   private void connect(Connect message) {
     // check the connectable
     if (connectable == null) {
-      connectable = new HiveConnectionWrapper(message.getJdbcUrl(), message.getUsername(), message.getPassword());
+      connectable = message.getConnectable();
     }
     // make the connectable to Hive
     try {

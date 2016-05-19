@@ -8,6 +8,7 @@ import org.apache.ambari.view.hive2.actor.message.AssignResultSet;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
 import org.apache.ambari.view.hive2.actor.message.GetMoreResults;
+import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.ResultReady;
 import org.apache.ambari.view.hive2.internal.Either;
 import org.apache.ambari.view.hive2.internal.ExecutionResult;
@@ -20,7 +21,7 @@ import java.sql.Statement;
 /**
  * Extract and start buffering the result set information to the
  */
-public class ResultHolder extends UntypedActor {
+public class ResultHolder extends HiveActor {
 
     private final ActorRef parent;
     private final ActorSystem system;
@@ -46,7 +47,8 @@ public class ResultHolder extends UntypedActor {
     }
 
     @Override
-    public void onReceive(Object message) {
+    public void handleMessage(HiveMessage hiveMessage) {
+        Object message = hiveMessage.getMessage();
         if (message instanceof AssignResultSet) {
             assignResultSet(message);
         }

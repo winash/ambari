@@ -6,6 +6,7 @@ import akka.actor.Cancellable;
 import akka.actor.UntypedActor;
 import com.google.common.base.Joiner;
 import org.apache.ambari.view.hive2.actor.message.GetMoreLogs;
+import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.LogAggregationFinished;
 import org.apache.ambari.view.hive2.actor.message.StartLogAggregation;
 import org.apache.ambari.view.hive2.actor.message.TerminateInactivityCheck;
@@ -22,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Reads the logs for a ExecuteJob from the Statement and writes them into hdfs.
  */
-public class LogAggregator extends UntypedActor {
+public class LogAggregator extends HiveActor {
   public static final int AGGREGATION_INTERVAL = 30 * 1000;
   private final HdfsApi hdfsApi;
   private final HiveStatement statement;
@@ -40,7 +41,8 @@ public class LogAggregator extends UntypedActor {
   }
 
   @Override
-  public void onReceive(Object message) throws Exception {
+  public void handleMessage(HiveMessage hiveMessage) {
+    Object message = hiveMessage.getMessage();
     if (message instanceof StartLogAggregation) {
       start();
     }

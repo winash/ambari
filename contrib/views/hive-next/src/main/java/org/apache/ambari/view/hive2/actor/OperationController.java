@@ -3,22 +3,22 @@ package org.apache.ambari.view.hive2.actor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
-import akka.actor.UntypedActor;
 import com.google.common.base.Optional;
-import org.apache.ambari.view.ViewContext;
+import com.google.common.base.Supplier;
 import org.apache.ambari.view.hive.persistence.DataStoreStorage;
 import org.apache.ambari.view.hive2.HiveJdbcConnectionDelegate;
+import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.DestroyConnector;
-import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
-import org.apache.ambari.view.hive2.actor.message.SyncJob;
 import org.apache.ambari.view.hive2.actor.message.FetchResult;
 import org.apache.ambari.view.hive2.actor.message.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.HiveJob;
+import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.JobRejected;
 import org.apache.ambari.view.hive2.actor.message.JobSubmitted;
 import org.apache.ambari.view.hive2.actor.message.ResultReady;
+import org.apache.ambari.view.hive2.actor.message.SyncJob;
 import org.apache.ambari.view.hive2.internal.Either;
 import org.apache.ambari.view.hive2.internal.ExecutionResult;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
@@ -37,10 +37,10 @@ import java.util.UUID;
  * Router actor to control the operations. This delegates the operations to underlying child actors and
  * store the state for them.
  */
-public class OperationController extends UntypedActor {
+public class OperationController extends HiveActor {
 
-  private final ViewContext viewContext;
   private final ActorSystem system;
+  private final Supplier<HiveJdbcConnectionDelegate> connectionDelegateSupplier;
 
   /**
    * Store the connection per user which are currently not working
@@ -58,16 +58,18 @@ public class OperationController extends UntypedActor {
    */
   private final Map<String, Set<ActorRef>> syncBusyConnections;
 
-  public OperationController(ViewContext viewContext, ActorSystem system) {
-    this.viewContext = viewContext;
+  public OperationController(ActorSystem system, Supplier<HiveJdbcConnectionDelegate> connectionDelegateSupplier) {
     this.system = system;
+    this.connectionDelegateSupplier = connectionDelegateSupplier;
     this.availableConnections = new HashMap<>();
     this.busyConnections = new HashedMap<>();
     this.syncBusyConnections = new HashMap<>();
   }
 
   @Override
-  public void onReceive(Object message) throws Exception {
+  public void handleMessage(HiveMessage hiveMessage) {
+    Object message = hiveMessage.getMessage();
+
     if (message instanceof ExecuteJob) {
       ExecuteJob job = (ExecuteJob) message;
       if(job.getJob().getType() == HiveJob.Type.ASYNC) {
@@ -144,9 +146,9 @@ public class OperationController extends UntypedActor {
         sender().tell(new JobRejected(username, jobId, "Failed to connect to HDFS."), ActorRef.noSender());
         return;
       }
-
+      //TODO:  pull the view context from message
       subActor = getContext().actorOf(
-        Props.create(JdbcConnector.class,viewContext, hdfsApi, system, self(), new HiveJdbcConnectionDelegate(),new DataStoreStorage(viewContext)),
+        Props.create(JdbcConnector.class,null, hdfsApi, system, self(),connectionDelegateSupplier.get() ,new DataStoreStorage(null)),
         username + ":" + UUID.randomUUID().toString());
 
     }
@@ -196,8 +198,9 @@ public class OperationController extends UntypedActor {
         return;
       }
 
+      //TODO:pull the view context out of the message
       subActor = getContext().actorOf(
-        Props.create(JdbcConnector.class,viewContext, hdfsApi, system, self(), new HiveJdbcConnectionDelegate(),new DataStoreStorage(viewContext)),
+        Props.create(JdbcConnector.class,null, hdfsApi, system, self(), new HiveJdbcConnectionDelegate(),new DataStoreStorage(null)),
         username + ":" + UUID.randomUUID().toString());
     }
 
@@ -218,7 +221,7 @@ public class OperationController extends UntypedActor {
 
   private HdfsApi getHdfsApi() throws HdfsApiException {
     return null;
-//    return HdfsUtil.connectToHDFSApi(viewContext);
+    //return HdfsUtil.connectToHDFSApi(viewContext);
   }
 
   private void destroyConnector(DestroyConnector message) {

@@ -2,8 +2,11 @@ package org.apache.ambari.view.hive2.actor.message;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Supplier;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
+import org.apache.ambari.view.hive2.internal.Connectable;
+import org.apache.ambari.view.hive2.internal.HiveConnectionWrapper;
 
 import java.util.Collections;
 import java.util.List;
@@ -23,7 +26,6 @@ public class Connect {
   private boolean isSync;
 
   public Connect(String username, String password, String host, int port, Map<String, String> authParams) {
-    this.jobId = jobId;
     this.username = username;
     this.password = password;
     this.host = host;
@@ -31,7 +33,11 @@ public class Connect {
     this.authParams = Collections.unmodifiableMap(authParams);
   }
 
-  public Connect(String jobId,String username, String password, String host, int port) {
+  public Connectable getConnectable(){
+    return new HiveConnectionWrapper(getJdbcUrl(),username,password);
+  }
+
+  public Connect(String username, String password, String host, int port) {
     this(username, password, host, port, Maps.<String, String>newHashMap());
   }
 
