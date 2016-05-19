@@ -20,6 +20,7 @@ import org.apache.ambari.view.hive2.internal.ConnectionException;
 import org.apache.ambari.view.hive2.internal.DataStorageSupplier;
 import org.apache.ambari.view.hive2.internal.DefaultSupplier;
 import org.apache.ambari.view.hive2.internal.HdfsApiSupplier;
+import org.apache.ambari.view.hive2.internal.HiveResult;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveConnection;
 import org.apache.hive.jdbc.HiveStatement;
@@ -55,26 +56,26 @@ public class OperationControllerTest {
 
     @Test
     public void testSyncJobSubmission() throws SQLException, ConnectionException, InterruptedException {
-        HiveJdbcConnectionDelegate connectionDelegate = createNiceMock(HiveJdbcConnectionDelegate.class);
+        HiveJdbcConnectionDelegate connectionDelegate = new HiveJdbcConnectionDelegate();
         HiveConnection connection = createNiceMock(HiveConnection.class);
         Statement statement = createNiceMock(HiveStatement.class);
         ResultSet resultSet = createNiceMock(ResultSet.class);
-
         DataStorageSupplier supplier = createNiceMock(DataStorageSupplier.class);
         HdfsApiSupplier hdfsSupplier = createNiceMock(HdfsApiSupplier.class);
-
         HdfsApi hdfsApi = createNiceMock(HdfsApi.class);
-        ResultSetMetaData resultSetMetaData = createNiceMock(ResultSetMetaData.class);
         ViewContext viewContext = createNiceMock(ViewContext.class);
+        Connect connect = createNiceMock(Connect.class);
+        ResultSetMetaData resultSetMetaData = createNiceMock(ResultSetMetaData.class);
+        Connectable connectable = createNiceMock(Connectable.class);
+        HiveResult hiveResult = createNiceMock(HiveResult.class);
+
         expect(supplier.get()).andReturn(new DataStoreStorage(viewContext));
         expect(hdfsSupplier.get()).andReturn(Optional.of(hdfsApi)).times(2);
         expect(connection.createStatement()).andReturn(statement);
-        Connect connect = createNiceMock(Connect.class);
-        Connectable connectable = createNiceMock(Connectable.class);
         expect(connect.getConnectable()).andReturn(connectable);
         expect(connectable.isOpen()).andReturn(false);
         Optional<HiveConnection> connectionOptional = Optional.of(connection);
-        expect(connectable.getConnection()).andReturn(connectionOptional);
+        expect(connectable.getConnection()).andReturn(connectionOptional).anyTimes();
 
         connectable.connect();
         String[] statements = {"select * from test"};
@@ -82,7 +83,6 @@ public class OperationControllerTest {
         for (String s : statements) {
             expect(statement.execute(s)).andReturn(true);
         }
-        expect(connectionDelegate.executeSync(connectionOptional.get(),job));
         expect(statement.getResultSet()).andReturn(resultSet);
         expect(resultSet.getMetaData()).andReturn(resultSetMetaData);
         expect(resultSetMetaData.getColumnCount()).andReturn(1);
@@ -95,11 +95,11 @@ public class OperationControllerTest {
 
 
         ExecuteJob executeJob = new ExecuteJob(connect, job);
-        replay(connection,resultSet,statement,viewContext,connectionDelegate,connect,connectable,hdfsSupplier,hdfsApi,supplier);
+        replay(connection,resultSet,resultSetMetaData,statement,viewContext,connect,connectable,hdfsSupplier,hdfsApi,supplier);
         operationControl.tell(executeJob,ActorRef.noSender());
 
-        Thread.sleep(5000);
-        verify(connection,resultSet,statement,viewContext,connectionDelegate,connect,connectable,hdfsApi,supplier,hdfsSupplier);
+       Thread.sleep(5000);
+        verify(connection,resultSet,resultSetMetaData,statement,viewContext,connect,connectable,hdfsApi,supplier,hdfsSupplier);
 
 
     }
