@@ -20,8 +20,12 @@ package org.apache.ambari.view.hive.resources.browser;
 
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.ViewResourceHandler;
+import org.apache.ambari.view.hive.client.ConnectionConfig;
+import org.apache.ambari.view.hive.client.DDLDelegator;
+import org.apache.ambari.view.hive.client.DDLDelegatorImpl;
 import org.apache.ambari.view.hive.utils.BadRequestFormattedException;
 import org.apache.ambari.view.hive.utils.ServiceFormattedException;
+import org.apache.ambari.view.hive2.ConnectionSystem;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +39,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.List;
 
 /**
  * Database access resource
@@ -79,11 +84,9 @@ public class HiveBrowserService {
     String curl = null;
     try {
       JSONObject response = new JSONObject();
-      //TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
-      //List<String> tables = connectionLocal.get(context).ddl().getDBList(session, like);
-      //response.put("databases", tables);
-
-      //TODO: New implementation
+      DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
+      List<String> tables = delegator.getDbList(getHiveConnectionConfig(), like);
+      response.put("databases", tables);
       return Response.ok(response).build();
     } catch (WebApplicationException ex) {
       throw ex;
@@ -287,5 +290,15 @@ public class HiveBrowserService {
     } catch (Exception ex) {
       throw new ServiceFormattedException(ex.getMessage(), ex, curl);
     }
+  }
+
+
+  private ConnectionConfig getHiveConnectionConfig() {
+    return new ConnectionConfig.ConnectionConfigBuilder()
+      .withUsername("admin")
+      .withPassword("")
+      .withHost("c6402.ambari.apache.org")
+      .withPort(10000)
+      .build();
   }
 }

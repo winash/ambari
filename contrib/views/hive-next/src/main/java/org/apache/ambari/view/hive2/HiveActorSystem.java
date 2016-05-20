@@ -20,6 +20,7 @@ import org.apache.ambari.view.ViewController;
 import org.apache.ambari.view.ViewDefinition;
 import org.apache.ambari.view.ViewInstanceDefinition;
 import org.apache.ambari.view.cluster.Cluster;
+import org.apache.ambari.view.hive.client.ConnectionConfig;
 import org.apache.ambari.view.hive2.actor.OperationController;
 import org.apache.ambari.view.hive2.actor.ResultSetIterator;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
@@ -66,7 +67,14 @@ public class HiveActorSystem {
       }),
       "controller");
 
-    Connect connect = new Connect("admin", "", "c6402.ambari.apache.org", 10000, Maps.<String, String>newHashMap());
+    Connect connect = new ConnectionConfig.ConnectionConfigBuilder()
+      .withHost("c6402.ambari.apache.org")
+      .withPort(10000)
+      .withUsername("admin")
+      .withPassword("")
+      .build().createConnectMessage();
+
+    //Connect connect = new Connect("admin", "", "c6402.ambari.apache.org", 10000, Maps.<String, String>newHashMap());
 
     ViewContext context = getViewContext();
     executeSync(hiveActorSystem, controller, connect, context);

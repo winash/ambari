@@ -20,7 +20,7 @@
   <groupId>org.apache.ambari.contrib.views</groupId>
   <artifactId>hive-next</artifactId>
   <version>1.0.0.0-SNAPSHOT</version>
-  <name>Hive</name>
+  <name>Hive-Next</name>
 
   <parent>
     <groupId>org.apache.ambari.contrib.views</groupId>
@@ -89,7 +89,7 @@
     <dependency>
       <groupId>org.apache.ambari</groupId>
       <artifactId>ambari-views</artifactId>
-      <scope>2.0.0.0</scope>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.google.code.gson</groupId>
