@@ -7,6 +7,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.persistence.Storage;
+import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.HiveJdbcConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.Connect;
@@ -20,6 +21,7 @@ import org.apache.ambari.view.hive2.actor.message.JobRejected;
 import org.apache.ambari.view.hive2.actor.message.JobSubmitted;
 import org.apache.ambari.view.hive2.actor.message.ResultReady;
 import org.apache.ambari.view.hive2.actor.message.SyncJob;
+import org.apache.ambari.view.hive2.internal.ContextSupplier;
 import org.apache.ambari.view.hive2.internal.Either;
 import org.apache.ambari.view.hive2.internal.AsyncExecutionFailure;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
@@ -42,9 +44,9 @@ import java.util.UUID;
 public class OperationController extends HiveActor {
 
   private final ActorSystem system;
-  private final Supplier<HiveJdbcConnectionDelegate> connectionSupplier;
-  private final Supplier<Storage> storageSupplier;
-  private final Supplier<Optional<HdfsApi>> hdfsApiSupplier;
+  private final ContextSupplier<ConnectionDelegate> connectionSupplier;
+  private final ContextSupplier<Storage> storageSupplier;
+  private final ContextSupplier<Optional<HdfsApi>> hdfsApiSupplier;
 
   /**
    * Store the connection per user which are currently not working
@@ -63,9 +65,9 @@ public class OperationController extends HiveActor {
   private final Map<String, Set<ActorRef>> syncBusyConnections;
 
   public OperationController(ActorSystem system,
-                             Supplier<HiveJdbcConnectionDelegate> connectionSupplier,
-                             Supplier<Storage> storageSupplier,
-                             Supplier<Optional<HdfsApi>> hdfsApiSupplier) {
+                             ContextSupplier<ConnectionDelegate> connectionSupplier,
+                             ContextSupplier<Storage> storageSupplier,
+                             ContextSupplier<Optional<HdfsApi>> hdfsApiSupplier) {
     this.system = system;
     this.connectionSupplier = connectionSupplier;
     this.storageSupplier = storageSupplier;
@@ -151,7 +153,7 @@ public class OperationController extends HiveActor {
       HdfsApi hdfsApi = null;
       ViewContext viewContext = job.getViewContext();
       subActor = getContext().actorOf(
-        Props.create(AsyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(), storageSupplier.get()),
+        Props.create(AsyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(viewContext), storageSupplier.get(viewContext)),
         username + ":" + UUID.randomUUID().toString());
 
     }
@@ -206,7 +208,7 @@ public class OperationController extends HiveActor {
       ViewContext viewContext = job.getViewContext();
 
       subActor = getContext().actorOf(
-        Props.create(SyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(), storageSupplier.get()),
+        Props.create(SyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(viewContext), storageSupplier.get(viewContext)),
         username + ":" + UUID.randomUUID().toString());
     }
 

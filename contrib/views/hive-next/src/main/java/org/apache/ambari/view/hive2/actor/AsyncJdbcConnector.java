@@ -38,8 +38,8 @@ public class AsyncJdbcConnector extends JdbcConnector {
   @Override
   protected void handleJobMessage(HiveMessage message) {
     Object job = message.getMessage();
-    if(job instanceof AsyncJob) {
-      LOG.debug("Executing async job "+ message.toString());
+    if (job instanceof AsyncJob) {
+      LOG.debug("Executing async job " + message.toString());
       execute((AsyncJob) job);
     }
   }
@@ -67,7 +67,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
       // There should be a result set, which either has a result set, or an empty value
       // for operations which do not return anything
       resultHolder = getContext().actorOf(
-        Props.create(SyncResultHolder.class, hdfsApi, system,self(),parent,message),
+        Props.create(SyncResultHolder.class, parent, message),
         message.getUsername() + ":" + message.getJobId() + "-resultsHolder");
 
       ActorRef logAggregator = getContext().actorOf(
@@ -83,7 +83,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
       } else {
         // Case when this is an Update/query with no results
         // Wait for operation to complete and add results;
-        resultHolder.tell(new AssignStatement(currentStatement.get()),self());
+        resultHolder.tell(new AssignStatement(currentStatement.get()), self());
 
       }
       // Start a actor to query log

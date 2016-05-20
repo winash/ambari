@@ -9,30 +9,19 @@ import org.apache.ambari.view.utils.hdfs.HdfsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HdfsApiSupplier implements Supplier<Optional<HdfsApi>> {
+public class HdfsApiSupplier implements ContextSupplier<Optional<HdfsApi>> {
 
-    protected final Logger LOG =
-            LoggerFactory.getLogger(getClass());
+  protected final Logger LOG =
+    LoggerFactory.getLogger(getClass());
 
-    private final ViewContext context;
-
-    public HdfsApiSupplier(ViewContext viewContext) {
-        this.context = viewContext;
+  @Override
+  public Optional<HdfsApi> get(ViewContext context) {
+    try {
+      LOG.debug("Creating HDFSApi instance for Viewname: {}, Instance Name: {}", context.getViewName(), context.getInstanceName());
+      return Optional.of(HdfsUtil.connectToHDFSApi(context));
+    } catch (HdfsApiException e) {
+      LOG.error("Cannot get the HDFS API", e);
     }
-
-    /**
-     * Retrieves an instance of the appropriate type. The returned object may or
-     * may not be a new instance, depending on the implementation.
-     *
-     * @return an instance of the appropriate type
-     */
-    @Override
-    public Optional<HdfsApi> get() {
-        try {
-            return Optional.of(HdfsUtil.connectToHDFSApi(context));
-        } catch (HdfsApiException e) {
-            LOG.error("Cannot get the HDFS API");
-        }
-        return Optional.absent();
-    }
+    return Optional.absent();
+  }
 }
