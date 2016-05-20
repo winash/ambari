@@ -23,4 +23,12 @@ public class AsyncJob extends HiveJob {
     return logFile;
   }
 
+
+  @Override
+  public String toString() {
+    return "AsyncJob{" +
+            "jobId='" + jobId + '\'' +
+            ", logFile='" + logFile + '\'' +
+            "} " + super.toString();
+  }
 }

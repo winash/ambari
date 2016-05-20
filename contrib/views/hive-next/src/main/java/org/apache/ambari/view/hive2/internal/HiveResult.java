@@ -15,6 +15,7 @@ import java.util.List;
 public class HiveResult implements Iterator<HiveResult.Row> {
 
     public static final String NULL = "NULL";
+    private static final int DEFAULT_BATCH_SIZE = 50;
     private static ResultSetMetaData metaData;
     private Row colNames;
     private NumberFormat nf = new DecimalFormat();
@@ -27,9 +28,13 @@ public class HiveResult implements Iterator<HiveResult.Row> {
         metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
         colNames = new Row(columnCount);
-        while (rs.next()){
+        int index = 0;
+        while (rs.next() && index <DEFAULT_BATCH_SIZE){
+            index ++;
             rows.add(new Row(columnCount,rs));
         }
+
+
     }
 
     public List<Row> getRows(){

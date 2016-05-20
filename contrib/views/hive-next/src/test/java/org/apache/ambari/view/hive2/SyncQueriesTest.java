@@ -3,14 +3,11 @@ package org.apache.ambari.view.hive2;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.Inbox;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import com.google.common.base.Optional;
-import com.google.common.base.Supplier;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.persistence.DataStoreStorage;
-import org.apache.ambari.view.hive.persistence.Storage;
 import org.apache.ambari.view.hive2.actor.OperationController;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
@@ -20,7 +17,6 @@ import org.apache.ambari.view.hive2.internal.ConnectionException;
 import org.apache.ambari.view.hive2.internal.DataStorageSupplier;
 import org.apache.ambari.view.hive2.internal.DefaultSupplier;
 import org.apache.ambari.view.hive2.internal.HdfsApiSupplier;
-import org.apache.ambari.view.hive2.internal.HiveResult;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveConnection;
 import org.apache.hive.jdbc.HiveStatement;
@@ -37,7 +33,7 @@ import java.sql.Statement;
 
 import static org.easymock.EasyMock.*;
 
-public class OperationControllerTest {
+public class SyncQueriesTest {
 
 
     private static ActorSystem actorSystem;
@@ -67,7 +63,6 @@ public class OperationControllerTest {
         Connect connect = createNiceMock(Connect.class);
         ResultSetMetaData resultSetMetaData = createNiceMock(ResultSetMetaData.class);
         Connectable connectable = createNiceMock(Connectable.class);
-        HiveResult hiveResult = createNiceMock(HiveResult.class);
 
         expect(supplier.get()).andReturn(new DataStoreStorage(viewContext));
         expect(hdfsSupplier.get()).andReturn(Optional.of(hdfsApi)).times(2);

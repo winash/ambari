@@ -21,7 +21,7 @@ import org.apache.ambari.view.hive2.actor.message.JobSubmitted;
 import org.apache.ambari.view.hive2.actor.message.ResultReady;
 import org.apache.ambari.view.hive2.actor.message.SyncJob;
 import org.apache.ambari.view.hive2.internal.Either;
-import org.apache.ambari.view.hive2.internal.ExecutionResult;
+import org.apache.ambari.view.hive2.internal.AsyncExecutionFailure;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.ambari.view.utils.hdfs.HdfsApiException;
 import org.apache.ambari.view.utils.hdfs.HdfsUtil;
@@ -130,8 +130,8 @@ public class OperationController extends HiveActor {
     // and send back to the caller
     String username = message.getUsername();
     String jobId = message.getJobId();
-    Either<ActorRef, ExecutionResult> result = busyConnections.get(username).get(jobId).result;
-    sender().tell(result, self());
+    Either<ActorRef, AsyncExecutionFailure> result = busyConnections.get(username).get(jobId).result;
+    sender().tell(result,self());
 
   }
 
@@ -197,11 +197,11 @@ public class OperationController extends HiveActor {
     subActor = getActorRefFromPool(username, subActor);
 
     if (subActor == null) {
-      /*if(!hdfsApiSupplier.get().isPresent()){
-        sender().tell(new JobRejected(username, ExecuteJob.SYNC_JOB_MARKER, "Failed to connect to HDFS."), ActorRef.noSender());
-        return;
-      }*/
-//      HdfsApi hdfsApi = hdfsApiSupplier.get().get();
+        /*if(!hdfsApiSupplier.get().isPresent()){
+          sender().tell(new JobRejected(username, ExecuteJob.SYNC_JOB_MARKER, "Failed to connect to HDFS."), ActorRef.noSender());
+          return;
+        }*/
+  //      HdfsApi hdfsApi = hdfsApiSupplier.get().get();
       HdfsApi hdfsApi = null;
       ViewContext viewContext = job.getViewContext();
 
@@ -297,7 +297,8 @@ public class OperationController extends HiveActor {
   private static class ActorRefResultContainer {
 
     ActorRef actorRef;
-    Either<ActorRef, ExecutionResult> result = Either.none();
+
+    Either<ActorRef,AsyncExecutionFailure> result = Either.none();
 
     public ActorRefResultContainer(ActorRef actorRef) {
       this.actorRef = actorRef;

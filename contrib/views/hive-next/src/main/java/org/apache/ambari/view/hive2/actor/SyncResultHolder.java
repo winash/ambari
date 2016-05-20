@@ -1,31 +1,25 @@
 package org.apache.ambari.view.hive2.actor;
 
 import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.UntypedActor;
-import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive2.actor.message.AssignResultSet;
+import org.apache.ambari.view.hive2.actor.message.AssignStatement;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
-import org.apache.ambari.view.hive2.actor.message.GetMoreResults;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.ResultReady;
+import org.apache.ambari.view.hive2.actor.message.job.FetchFailed;
+import org.apache.ambari.view.hive2.actor.message.job.Next;
+import org.apache.ambari.view.hive2.internal.AsyncExecutionSuccess;
 import org.apache.ambari.view.hive2.internal.Either;
-import org.apache.ambari.view.hive2.internal.ExecutionResult;
+import org.apache.ambari.view.hive2.internal.AsyncExecutionFailure;
 import org.apache.ambari.view.hive2.internal.HiveResult;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-/**
- * Extract and start buffering the result set information to the
- */
-public class ResultHolder extends HiveActor {
+public class SyncResultHolder extends HiveActor {
 
-    private final ActorRef parent;
-    private final ActorSystem system;
-    private final ViewContext viewContext;
 
     /**
      * The top level parent
@@ -36,12 +30,9 @@ public class ResultHolder extends HiveActor {
      */
     private final AsyncJob executeJob;
     private ResultSet resultSet;
+    private Statement statement;
 
-    public ResultHolder(ViewContext viewContext, ActorSystem system, ActorRef actorRef, ActorRef operationController,AsyncJob executeJob) {
-        this.parent = actorRef;
-
-        this.system = system;
-        this.viewContext = viewContext;
+    public SyncResultHolder(ActorRef operationController, AsyncJob executeJob) {
         this.operationController = operationController;
         this.executeJob = executeJob;
     }
@@ -49,47 +40,50 @@ public class ResultHolder extends HiveActor {
     @Override
     public void handleMessage(HiveMessage hiveMessage) {
         Object message = hiveMessage.getMessage();
+
         if (message instanceof AssignResultSet) {
             assignResultSet(message);
         }
 
-        if (message instanceof ExecuteQuery) {
-            try {
-                executeQuery(message);
-
-            } catch (SQLException e) {
-                //TODO:Send a failed message
-                // Write the results to DB and send a reply holding that info
-                //to the caller
-            }
+        if(message instanceof AssignStatement){
+            assignStatement((AssignStatement)message);
         }
 
-        if(message instanceof GetMoreResults){
-            try {
-                HiveResult hiveResult = pullResultSet();
-                System.out.println(hiveResult);
-                sender().tell(hiveResult,self());
-            } catch (SQLException e) {
-                //TODO:Send a failed message
-
+        if (message instanceof ExecuteQuery) {
+                executeQuery();
             }
+
+        if (message instanceof Next) {
+            parseResultSet();
         }
 
     }
 
-    private void executeQuery(Object message) throws SQLException {
-        ExecuteQuery executeQuery = (ExecuteQuery) message;
-        Statement statement = executeQuery.getStatement().get();
+    private void assignStatement(AssignStatement message) {
+        statement = message.getStatement();
+        operationController.tell(new ResultReady(executeJob.getJobId(),
+                executeJob.getUsername(),
+                Either.<ActorRef, AsyncExecutionFailure>left(self())), self());
+    }
+
+    private void parseResultSet() {
         try {
-            System.out.println("Before get UpdateCount"+ self());
-            statement.getUpdateCount();
-            System.out.println("After get UpdateCount"+ self());
-            operationController.tell(new ResultReady(executeJob.getJobId(),
-                    executeJob.getUsername(),
-                    Either.<ActorRef, ExecutionResult>right(new ExecutionResult())),self());
+            HiveResult hiveResult = pullResultSet();
+            sender().tell(hiveResult, self());
         } catch (SQLException e) {
-            throw e;
+            sender().tell(new FetchFailed("Could not read ay results", e), self());
         }
+    }
+
+    private void executeQuery()  {
+        try {
+            statement.getUpdateCount();
+            sender().tell(new AsyncExecutionSuccess(),self());
+        } catch (SQLException e) {
+            sender().tell(new AsyncExecutionFailure(),self());
+        }
+
+
     }
 
     private HiveResult pullResultSet() throws SQLException {
@@ -106,19 +100,18 @@ public class ResultHolder extends HiveActor {
      * Calling a next here would cause the operation to block
      * which would anyways happen when the ask to this ref is
      * executed
-     *
+     * <p/>
      * To get results from this ref send a GetMoreResultsMessage
-     * @see GetMoreResults
-     *
      *
      * @param extractMessage
+     * @see Next
      */
     private void assignResultSet(Object extractMessage) {
         AssignResultSet message = (AssignResultSet) extractMessage;
         this.resultSet = message.getResultSet();
         operationController.tell(new ResultReady(executeJob.getJobId(),
                 executeJob.getUsername(),
-                Either.<ActorRef, ExecutionResult>left(self())),self());
+                Either.<ActorRef, AsyncExecutionFailure>left(self())), self());
 
     }
 

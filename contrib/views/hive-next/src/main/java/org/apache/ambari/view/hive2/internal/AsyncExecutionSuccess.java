@@ -1,5 +1,5 @@
 package org.apache.ambari.view.hive2.internal;
 
-public class ExecutionResult {
+public class AsyncExecutionSuccess {
 }
 

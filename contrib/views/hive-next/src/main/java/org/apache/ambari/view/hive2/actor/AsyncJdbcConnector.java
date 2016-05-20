@@ -8,6 +8,7 @@ import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.persistence.Storage;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.AssignResultSet;
+import org.apache.ambari.view.hive2.actor.message.AssignStatement;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
@@ -17,16 +18,17 @@ import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveConnection;
 import org.apache.hive.jdbc.HiveStatement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Created by dbhowmick on 5/19/16.
- */
 public class AsyncJdbcConnector extends JdbcConnector {
+
+  protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
 
   public AsyncJdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent, ConnectionDelegate connectionDelegate, Storage storage) {
@@ -37,6 +39,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
   protected void handleJobMessage(HiveMessage message) {
     Object job = message.getMessage();
     if(job instanceof AsyncJob) {
+      LOG.debug("Executing async job "+ message.toString());
       execute((AsyncJob) job);
     }
   }
@@ -48,7 +51,6 @@ public class AsyncJdbcConnector extends JdbcConnector {
 
   private void execute(AsyncJob message) {
     this.jobId = message.getJobId();
-    System.out.println("Executing job" + self());
     if (connectable == null) {
       throw new NotConnectedException("Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive");
     }
@@ -65,7 +67,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
       // There should be a result set, which either has a result set, or an empty value
       // for operations which do not return anything
       resultHolder = getContext().actorOf(
-        Props.create(ResultHolder.class, viewContext, system,self(),parent,message),
+        Props.create(SyncResultHolder.class, hdfsApi, system,self(),parent,message),
         message.getUsername() + ":" + message.getJobId() + "-resultsHolder");
 
       ActorRef logAggregator = getContext().actorOf(
@@ -81,7 +83,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
       } else {
         // Case when this is an Update/query with no results
         // Wait for operation to complete and add results;
-        resultHolder.tell(new ExecuteQuery(currentStatement),self());
+        resultHolder.tell(new AssignStatement(currentStatement.get()),self());
 
       }
       // Start a actor to query log

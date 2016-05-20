@@ -20,9 +20,6 @@ import org.apache.hive.jdbc.HiveConnection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-/**
- * Created by dbhowmick on 5/19/16.
- */
 public class SyncJdbcConnector extends JdbcConnector {
 
   public SyncJdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent, ConnectionDelegate connectionDelegate, Storage storage) {
