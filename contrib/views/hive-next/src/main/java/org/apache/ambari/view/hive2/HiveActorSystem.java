@@ -51,7 +51,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class HiveActorSystem {
   public static final String HIVE_VIEW_SYSTEM = "HiveViewSystem";
-  private final ActorSystem system = ActorSystem.create(HIVE_VIEW_SYSTEM);
+  private final ActorSystem system = ConnectionSystem.getInstance().getActorSystem();
 
   public static void main(String[] args) throws Exception {
     HiveActorSystem hiveActorSystem = new HiveActorSystem();

@@ -4,6 +4,9 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import org.apache.ambari.view.hive2.actor.OperationController;
+import org.apache.ambari.view.hive2.internal.ConnectionSupplier;
+import org.apache.ambari.view.hive2.internal.DataStorageSupplier;
+import org.apache.ambari.view.hive2.internal.HdfsApiSupplier;
 
 /**
  * Created by dbhowmick on 5/20/16.
@@ -19,6 +22,7 @@ public class ConnectionSystem {
 
   private ConnectionSystem() {
     actorSystem = ActorSystem.create(ACTOR_SYSTEM_NAME);
+    createOperationController();
   }
 
   public static ConnectionSystem getInstance() {
@@ -32,24 +36,21 @@ public class ConnectionSystem {
     return instance;
   }
 
-  public synchronized void intialize() {
-    createOperationController();
-  }
-
   private void createOperationController() {
+    this.operationController = actorSystem.actorOf(Props.create(OperationController.class, actorSystem, new ConnectionSupplier(), new DataStorageSupplier(), new HdfsApiSupplier()));
   }
 
   public ActorSystem getActorSystem() {
     return actorSystem;
   }
 
+  public ActorRef getOperationController() {
+    return operationController;
+  }
+
   public void shutdown() {
     if(!actorSystem.isTerminated()) {
       actorSystem.shutdown();
     }
-  }
-
-  public ActorRef getOperationController() {
-    return operationController;
   }
 }
