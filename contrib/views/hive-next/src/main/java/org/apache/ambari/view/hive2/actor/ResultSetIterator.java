@@ -129,6 +129,10 @@ public class ResultSetIterator extends HiveActor {
 
     }
 
+    public String[] getValues() {
+      return values;
+    }
+
     @Override
     public String toString() {
       return "Row{" +
