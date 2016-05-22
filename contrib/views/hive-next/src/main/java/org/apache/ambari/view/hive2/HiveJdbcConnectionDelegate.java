@@ -54,7 +54,7 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
       Statement statement = connection.createStatement();
       currentStatement = (HiveStatement) statement;
 
-      boolean hasResultSet = true;
+      boolean hasResultSet = false;
       for (String syncStatement : job.getStatements()) {
         // we don't care about the result
         // fail all if one fails

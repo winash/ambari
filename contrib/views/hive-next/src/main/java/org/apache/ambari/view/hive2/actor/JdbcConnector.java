@@ -34,7 +34,7 @@ public abstract class JdbcConnector extends HiveActor {
   /**
    * Interval for maximum inactivity allowed
    */
-  private final static long MAX_INACTIVITY_INTERVAL = 5 * 10 * 1000;
+  private final static long MAX_INACTIVITY_INTERVAL = 1 * 60 * 1000;
 
   /**
    * Interval for maximum inactivity allowed before termination
@@ -67,10 +67,6 @@ public abstract class JdbcConnector extends HiveActor {
   protected final ConnectionDelegate connectionDelegate;
   protected final ActorRef parent;
   protected final HdfsApi hdfsApi;
-
-  // The result Holder assigned to this Connector
-  protected ActorRef resultHolder;
-
 
   /**
    * true if the actor is currently executing any job.
@@ -165,10 +161,6 @@ public abstract class JdbcConnector extends HiveActor {
       } catch (SQLException e) {
         // TODO: check this
       }
-      //Poison the Result holder
-      resultHolder.tell(PoisonPill.getInstance(), self());
-//      //nullify the reference
-      resultHolder = null;
       // Tell the router actor to remove the reference from its cache
       // Tell the router actor to render this connectable actor as free.
 
@@ -191,11 +183,6 @@ public abstract class JdbcConnector extends HiveActor {
         connectionDelegate.closeResultSet();
       } catch (SQLException e) {
         // TODO: check this
-      }
-      if(resultHolder != null){
-        resultHolder.tell(PoisonPill.getInstance(), self());
-       //nullify the reference
-        resultHolder = null;
       }
 
       parent.tell(new DestroyConnector(username, jobId, isAsync()), this.self());

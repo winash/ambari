@@ -66,7 +66,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
       Optional<HiveStatement> currentStatement = connectionDelegate.getCurrentStatement();
       // There should be a result set, which either has a result set, or an empty value
       // for operations which do not return anything
-      resultHolder = getContext().actorOf(
+      ActorRef resultHolder = getContext().actorOf(
         Props.create(SyncResultHolder.class, parent, message),
         message.getUsername() + ":" + message.getJobId() + "-resultsHolder");
 

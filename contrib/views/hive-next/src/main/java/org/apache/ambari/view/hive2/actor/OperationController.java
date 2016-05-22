@@ -138,7 +138,7 @@ public class OperationController extends HiveActor {
   }
 
   private void sendJob(Connect connect, AsyncJob job) {
-    String username = connect.getUsername();
+    String username = job.getUsername();
     String jobId = job.getJobId();
     ActorRef subActor = null;
     // Check if there is available actors to process this
