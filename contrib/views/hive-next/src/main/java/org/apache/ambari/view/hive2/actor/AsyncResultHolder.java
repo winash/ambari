@@ -18,7 +18,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public class SyncResultHolder extends HiveActor {
+public class AsyncResultHolder extends HiveActor {
 
 
     /**
@@ -32,7 +32,7 @@ public class SyncResultHolder extends HiveActor {
     private ResultSet resultSet;
     private Statement statement;
 
-    public SyncResultHolder(ActorRef operationController, AsyncJob executeJob) {
+    public AsyncResultHolder(ActorRef operationController, AsyncJob executeJob) {
         this.operationController = operationController;
         this.executeJob = executeJob;
     }

@@ -10,7 +10,6 @@ import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.AssignResultSet;
 import org.apache.ambari.view.hive2.actor.message.AssignStatement;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
-import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.InactivityCheck;
 import org.apache.ambari.view.hive2.actor.message.StartLogAggregation;
@@ -67,7 +66,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
       // There should be a result set, which either has a result set, or an empty value
       // for operations which do not return anything
       ActorRef resultHolder = getContext().actorOf(
-        Props.create(SyncResultHolder.class, parent, message),
+        Props.create(AsyncResultHolder.class, parent, message),
         message.getUsername() + ":" + message.getJobId() + "-resultsHolder");
 
       ActorRef logAggregator = getContext().actorOf(
