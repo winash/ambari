@@ -42,7 +42,7 @@ public class ExceptionWriter extends UntypedActor {
   }
 
   private void writeError(String message, Throwable error) {
-    LOG.error(getErrorString(message, error));
+    LOG.error(message, error);
   }
 
   private void updateError(String jobId, String message, Throwable error) {

@@ -4,6 +4,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Cancellable;
 import akka.actor.PoisonPill;
+import akka.actor.Props;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.persistence.Storage;
@@ -11,6 +12,7 @@ import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
 import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.Connect;
+import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.DestroyConnector;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
@@ -66,6 +68,7 @@ public abstract class JdbcConnector extends HiveActor {
   protected Connectable connectable = null;
   protected final ConnectionDelegate connectionDelegate;
   protected final ActorRef parent;
+  protected final ActorRef exceptionWriter;
   protected final HdfsApi hdfsApi;
 
   /**
@@ -89,6 +92,7 @@ public abstract class JdbcConnector extends HiveActor {
     this.connectionDelegate = connectionDelegate;
     this.storage = storage;
     this.lastActivityTimestamp = System.currentTimeMillis();
+    exceptionWriter = getContext().actorOf(Props.create(ExceptionWriter.class, hdfsApi, storage), "Exception-Writer-" + viewContext.getUsername() + "/" + viewContext.getInstanceName());
   }
 
   @Override
@@ -128,7 +132,7 @@ public abstract class JdbcConnector extends HiveActor {
         connectable.connect();
       }
     } catch (ConnectionException e) {
-      //TODO: Terminate the actor immedeatly
+      exceptionWriter.tell(new ExecutionFailed(e.getMessage(), e), ActorRef.noSender());
     }
 
     this.terminateActorScheduler = system.scheduler().schedule(
@@ -159,7 +163,7 @@ public abstract class JdbcConnector extends HiveActor {
         connectionDelegate.closeStatement();
         connectionDelegate.closeResultSet();
       } catch (SQLException e) {
-        // TODO: check this
+        exceptionWriter.tell(new ExecutionFailed("Failed to clean up connection", e), ActorRef.noSender());
       }
       // Tell the router actor to remove the reference from its cache
       // Tell the router actor to render this connectable actor as free.
@@ -182,7 +186,7 @@ public abstract class JdbcConnector extends HiveActor {
         connectionDelegate.closeStatement();
         connectionDelegate.closeResultSet();
       } catch (SQLException e) {
-        // TODO: check this
+        exceptionWriter.tell(new ExecutionFailed("Failed to clean up connection", e), ActorRef.noSender());
       }
 
       parent.tell(new DestroyConnector(username, jobId, isAsync()), this.self());

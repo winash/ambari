@@ -9,6 +9,7 @@ import org.apache.ambari.view.hive.persistence.Storage;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.SyncJob;
+import org.apache.ambari.view.hive2.actor.message.job.AsyncExecutionFailed;
 import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
 import org.apache.ambari.view.hive2.actor.message.job.NoResult;
 import org.apache.ambari.view.hive2.actor.message.job.ResultSetHolder;
@@ -41,13 +42,14 @@ public class SyncJdbcConnector extends JdbcConnector {
 
   protected void execute(SyncJob job) {
     ActorRef sender = this.getSender();
+    String errorMessage = "Cannot execute sync job for user: " + job.getUsername() + ". Not connected to Hive";
     if (connectable == null) {
-      throw new NotConnectedException("Cannot execute sync job for user: " + job.getUsername() + ". Not connected to Hive");
+      sender.tell(new ExecutionFailed(errorMessage), ActorRef.noSender());
     }
 
     Optional<HiveConnection> connectionOptional = connectable.getConnection();
     if (!connectionOptional.isPresent()) {
-      throw new NotConnectedException("Cannot execute sync job for user: " + job.getUsername() + ". Not connected to Hive");
+      sender.tell(new ExecutionFailed(errorMessage), ActorRef.noSender());
     }
 
     try {

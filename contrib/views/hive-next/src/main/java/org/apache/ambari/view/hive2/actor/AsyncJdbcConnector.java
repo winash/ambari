@@ -11,6 +11,7 @@ import org.apache.ambari.view.hive2.actor.message.AssignResultSet;
 import org.apache.ambari.view.hive2.actor.message.AssignStatement;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
+import org.apache.ambari.view.hive2.actor.message.job.AsyncExecutionFailed;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.InactivityCheck;
 import org.apache.ambari.view.hive2.actor.message.StartLogAggregation;
 import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
@@ -50,13 +51,14 @@ public class AsyncJdbcConnector extends JdbcConnector {
 
   private void execute(AsyncJob message) {
     this.jobId = message.getJobId();
+    String errorMessage = "Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive";
     if (connectable == null) {
-      throw new NotConnectedException("Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive");
+      exceptionWriter.tell(new AsyncExecutionFailed(message.getJobId(), errorMessage), ActorRef.noSender());
     }
 
     Optional<HiveConnection> connectionOptional = connectable.getConnection();
     if (!connectionOptional.isPresent()) {
-      throw new NotConnectedException("Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive");
+      exceptionWriter.tell(new AsyncExecutionFailed(message.getJobId(), errorMessage), ActorRef.noSender());
     }
 
     try {
@@ -96,7 +98,8 @@ public class AsyncJdbcConnector extends JdbcConnector {
       }
 
     } catch (SQLException e) {
-      //TODO: HandleExceptions,
+      exceptionWriter.tell(new AsyncExecutionFailed(message.getJobId(),
+        e.getMessage(), e), ActorRef.noSender());
     }
 
     // Start Inactivity timer to close the statement
