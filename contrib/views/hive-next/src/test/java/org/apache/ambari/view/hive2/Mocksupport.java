@@ -39,7 +39,7 @@ abstract class MockSupport {
 
     public void setUpDefaultExpectations() throws SQLException, ConnectionException {
         expect(supplier.get(viewContext)).andReturn(new DataStoreStorage(viewContext));
-        expect(hdfsSupplier.get(viewContext)).andReturn(Optional.of(hdfsApi)).times(2);
+        expect(hdfsSupplier.get(viewContext)).andReturn(Optional.fromNullable(hdfsApi)).anyTimes();
         expect(connection.createStatement()).andReturn(statement);
         expect(connect.getConnectable()).andReturn(connectable);
         expect(connectable.isOpen()).andReturn(false);

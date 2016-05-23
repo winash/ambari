@@ -57,7 +57,7 @@ public class SyncQueriesTest extends MockSupport {
         mockDependencies();
         setUpDefaultExpectations();
         String[] statements = {"select * from test"};
-        SyncJob job = new SyncJob("admin", statements, viewContext);
+        SyncJob job = new SyncJob("admin", statements,viewContext);
         for (String s : statements) {
             expect(statement.execute(s)).andReturn(true);
         }
