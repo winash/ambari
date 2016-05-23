@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -51,9 +51,9 @@ public class HiveBrowserService {
   protected ViewContext context;
 
   protected final static Logger LOG =
-      LoggerFactory.getLogger(HiveBrowserService.class);
+    LoggerFactory.getLogger(HiveBrowserService.class);
 
-  private static final long EXPIRING_TIME = 10*60*1000;  // 10 minutes
+  private static final long EXPIRING_TIME = 10 * 60 * 1000;  // 10 minutes
   /*private static Map<String, Cursor> resultsCache;
   private UserLocalConnection connectionLocal = new UserLocalConnection();
 
@@ -73,7 +73,7 @@ public class HiveBrowserService {
   @GET
   @Path("database")
   @Produces(MediaType.APPLICATION_JSON)
-  public Response databases(@QueryParam("like")String like,
+  public Response databases(@QueryParam("like") String like,
                             @QueryParam("first") String fromBeginning,
                             @QueryParam("count") Integer count,
                             @QueryParam("columns") final String requestedColumns) {
@@ -81,20 +81,12 @@ public class HiveBrowserService {
       like = "*";
     else
       like = "*" + like + "*";
-    String curl = null;
-    try {
-      JSONObject response = new JSONObject();
-      DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
-      List<String> tables = delegator.getDbList(getHiveConnectionConfig(), like);
-      response.put("databases", tables);
-      return Response.ok(response).build();
-    } catch (WebApplicationException ex) {
-      throw ex;
-    } catch (IllegalArgumentException ex) {
-      throw new BadRequestFormattedException(ex.getMessage(), ex);
-    } catch (Exception ex) {
-      throw new ServiceFormattedException(ex.getMessage(), ex, curl);
-    }
+    JSONObject response = new JSONObject();
+    DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
+    List<String> databases = delegator.getDbList(getHiveConnectionConfig(), like);
+    response.put("databases", databases);
+    return Response.ok(response).build();
+
   }
 
   /**
@@ -103,12 +95,12 @@ public class HiveBrowserService {
   @GET
   @Path("database.page")
   @Produces(MediaType.APPLICATION_JSON)
-  public Response databasesPaginated(@QueryParam("like")String like,
-                            @QueryParam("first") String fromBeginning,
-                            @QueryParam("count") Integer count,
-                            @QueryParam("searchId") String searchId,
-                            @QueryParam("format") String format,
-                            @QueryParam("columns") final String requestedColumns) {
+  public Response databasesPaginated(@QueryParam("like") String like,
+                                     @QueryParam("first") String fromBeginning,
+                                     @QueryParam("count") Integer count,
+                                     @QueryParam("searchId") String searchId,
+                                     @QueryParam("format") String format,
+                                     @QueryParam("columns") final String requestedColumns) {
     if (like == null)
       like = "*";
     else
@@ -145,7 +137,7 @@ public class HiveBrowserService {
   @Path("database/{db}/table")
   @Produces(MediaType.APPLICATION_JSON)
   public Response tablesInDatabase(@PathParam("db") String db,
-                                   @QueryParam("like")String like,
+                                   @QueryParam("like") String like,
                                    @QueryParam("first") String fromBeginning,
                                    @QueryParam("count") Integer count,
                                    @QueryParam("columns") final String requestedColumns) {
@@ -153,24 +145,14 @@ public class HiveBrowserService {
       like = "*";
     else
       like = "*" + like + "*";
-    String curl = null;
-    try {
-      JSONObject response = new JSONObject();
-      //TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
-      //List<String> tables = connectionLocal.get(context).ddl().getTableList(session, db, like);
-      //response.put("tables", tables);
-      response.put("database", db);
 
-      //TODO: New implementation
+    JSONObject response = new JSONObject();
+    DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
+    List<String> tables = delegator.getTableList(getHiveConnectionConfig(), db, like);
+    response.put("tables", tables);
+    response.put("database", db);
+    return Response.ok(response).build();
 
-      return Response.ok(response).build();
-    } catch (WebApplicationException ex) {
-      throw ex;
-    } catch (IllegalArgumentException ex) {
-      throw new BadRequestFormattedException(ex.getMessage(), ex);
-    } catch (Exception ex) {
-      throw new ServiceFormattedException(ex.getMessage(), ex, curl);
-    }
   }
 
   /**
@@ -180,12 +162,12 @@ public class HiveBrowserService {
   @Path("database/{db}/table.page")
   @Produces(MediaType.APPLICATION_JSON)
   public Response tablesInDatabasePaginated(@PathParam("db") final String db,
-                                   @QueryParam("like")String like,
-                                   @QueryParam("first") String fromBeginning,
-                                   @QueryParam("count") Integer count,
-                                   @QueryParam("searchId") String searchId,
-                                   @QueryParam("format") String format,
-                                   @QueryParam("columns") final String requestedColumns) {
+                                            @QueryParam("like") String like,
+                                            @QueryParam("first") String fromBeginning,
+                                            @QueryParam("count") Integer count,
+                                            @QueryParam("searchId") String searchId,
+                                            @QueryParam("format") String format,
+                                            @QueryParam("columns") final String requestedColumns) {
     if (like == null)
       like = "*";
     else

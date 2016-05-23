@@ -7,8 +7,10 @@ import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.Service;
 import com.google.inject.Inject;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive.utils.ServiceFormattedException;
 import org.apache.ambari.view.hive2.actor.ResultSetIterator;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
@@ -69,7 +71,7 @@ public class DDLDelegatorImpl implements DDLDelegator {
   @Override
   public List<String> getTableList(ConnectionConfig config, String database, String like) {
     List<ResultSetIterator.Row> rows = getRowsFromDB(config, new String[] {
-      String.format("use '%s'", database),
+      String.format("use %s", database),
       String.format("show tables like '%s'", like)
     });
     return getFirstColumnValues(rows);
@@ -89,14 +91,14 @@ public class DDLDelegatorImpl implements DDLDelegator {
     Inbox inbox = Inbox.create(system);
     inbox.send(controller, execute);
     try {
-      Object submitResult = inbox.receive(Duration.create(5, TimeUnit.MINUTES));
+      Object submitResult = inbox.receive(Duration.create(2, TimeUnit.MINUTES));
       if (submitResult instanceof NoResult) {
         LOG.info("Query returned with no result.");
         return rows;
 
       } else if (submitResult instanceof ExecutionFailed) {
         ExecutionFailed error = (ExecutionFailed) submitResult;
-        // TODO: Throw error;
+        throw new ServiceFormattedException(error.getMessage(), error.getError());
 
       } else if (submitResult instanceof ResultSetHolder){
         ResultSetHolder holder = (ResultSetHolder) submitResult;
@@ -115,19 +117,18 @@ public class DDLDelegatorImpl implements DDLDelegator {
           }
 
           if(receive instanceof FetchFailed) {
-            FetchFailed message = (FetchFailed) receive;
-            // TODO: Throw exception
-            break;
+            FetchFailed error = (FetchFailed) receive;
+            LOG.error(error.getMessage(), error.getError());
+            throw new ServiceFormattedException(error.getMessage(), error.getError());
           }
         }
 
       }
     } catch(Throwable ex) {
-      // TODO: Throw exception
       LOG.error("Query timed out", ex);
-    }
+      throw new ServiceFormattedException(ex);
 
-    LOG.debug("Query returned {} rows", rows.size());
+    }
     return rows;
   }
 

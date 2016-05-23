@@ -197,8 +197,8 @@ export default Ember.Object.create({
   //this can be replaced by a string.format implementation
   adapter: {
     version: '1.0.0',
-    instance: 'Hive',
-    apiPrefix: '/api/v1/views/HIVE/versions/',
+    instance: 'Hive-Next',
+    apiPrefix: '/api/v1/views/HIVE-NEXT/versions/',
     instancePrefix: '/instances/',
     resourcePrefix: 'resources/'
   },
