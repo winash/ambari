@@ -145,11 +145,12 @@ public class OperationController extends HiveActor {
     subActor = getActorRefFromPool(username, subActor);
     ViewContext viewContext = job.getViewContext();
     if (subActor == null) {
-      if (!hdfsApiSupplier.get(viewContext).isPresent()) {
+      Optional<HdfsApi> hdfsApiOptional = hdfsApiSupplier.get(viewContext);
+      if (!hdfsApiOptional.isPresent()) {
         sender().tell(new JobRejected(username, jobId, "Failed to connect to Hive."), ActorRef.noSender());
         return;
       }
-      HdfsApi hdfsApi = hdfsApiSupplier.get(viewContext).get();
+      HdfsApi hdfsApi = hdfsApiOptional.get();
 
       subActor = getContext().actorOf(
         Props.create(AsyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(viewContext), storageSupplier.get(viewContext)),
@@ -199,13 +200,14 @@ public class OperationController extends HiveActor {
     ViewContext viewContext = job.getViewContext();
 
     if (subActor == null) {
-        if(!hdfsApiSupplier.get(viewContext).isPresent()){
+      Optional<HdfsApi> hdfsApiOptional = hdfsApiSupplier.get(viewContext);
+      if(!hdfsApiOptional.isPresent()){
           sender().tell(new JobRejected(username, ExecuteJob.SYNC_JOB_MARKER, "Failed to connect to HDFS."), ActorRef.noSender());
           return;
         }
-      HdfsApi hdfsApi = hdfsApiSupplier.get(viewContext).get();
+      HdfsApi hdfsApi = hdfsApiOptional.get();
 
-      subActor = getContext().actorOf(
+      subActor = system.actorOf(
         Props.create(SyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(viewContext), storageSupplier.get(viewContext)),
         username + ":" + UUID.randomUUID().toString());
     }
