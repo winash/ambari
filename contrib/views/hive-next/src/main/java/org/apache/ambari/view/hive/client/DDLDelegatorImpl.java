@@ -5,6 +5,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Inbox;
 import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Service;
@@ -93,11 +94,13 @@ public class DDLDelegatorImpl implements DDLDelegator {
     try {
       Object submitResult = inbox.receive(Duration.create(2, TimeUnit.MINUTES));
       if (submitResult instanceof NoResult) {
-        LOG.info("Query returned with no result.");
+        LOG.info("Query returned with no result. Query: '" + getJoinedStatements(statements) + "'");
         return rows;
 
       } else if (submitResult instanceof ExecutionFailed) {
         ExecutionFailed error = (ExecutionFailed) submitResult;
+        LOG.error("Failed to execute statements.{}. user: {}, Query: {}. Exception: {}",
+          error.getMessage(), config.getUsername(), getJoinedStatements(statements), error.getError());
         throw new ServiceFormattedException(error.getMessage(), error.getError());
 
       } else if (submitResult instanceof ResultSetHolder){
@@ -118,18 +121,25 @@ public class DDLDelegatorImpl implements DDLDelegator {
 
           if(receive instanceof FetchFailed) {
             FetchFailed error = (FetchFailed) receive;
-            LOG.error(error.getMessage(), error.getError());
+            LOG.error("Failed to fetch results for statements.{}. user: {}, Query: {}. Exception: {}",
+              error.getMessage(), config.getUsername(), getJoinedStatements(statements), error.getError());
             throw new ServiceFormattedException(error.getMessage(), error.getError());
           }
         }
 
       }
     } catch(Throwable ex) {
-      LOG.error("Query timed out", ex);
-      throw new ServiceFormattedException(ex);
+      String stmts = getJoinedStatements(statements);
+      String errorMessage = "Query timed out for user: " + config.getUsername() + ". Query: '" + stmts + "'";
+      LOG.error(errorMessage, ex);
+      throw new ServiceFormattedException(errorMessage, ex);
 
     }
     return rows;
+  }
+
+  private String getJoinedStatements(String[] statements) {
+    return Joiner.on("; ").skipNulls().join(statements);
   }
 
 }
