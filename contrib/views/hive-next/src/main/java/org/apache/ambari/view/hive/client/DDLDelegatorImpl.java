@@ -52,7 +52,7 @@ public class DDLDelegatorImpl implements DDLDelegator {
 
   @Override
   public List<String> getDbList(ConnectionConfig config, String like) {
-    List<ResultSetIterator.Row> rows = getRowsFromDB(config, new String[] {
+    List<ResultSetIterator.Row> rows = getRowsFromDB(config, new String[]{
       String.format("show databases like '%s'", like)
     });
     return getFirstColumnValues(rows);
@@ -71,7 +71,7 @@ public class DDLDelegatorImpl implements DDLDelegator {
 
   @Override
   public List<String> getTableList(ConnectionConfig config, String database, String like) {
-    List<ResultSetIterator.Row> rows = getRowsFromDB(config, new String[] {
+    List<ResultSetIterator.Row> rows = getRowsFromDB(config, new String[]{
       String.format("use %s", database),
       String.format("show tables like '%s'", like)
     });
@@ -91,50 +91,59 @@ public class DDLDelegatorImpl implements DDLDelegator {
 
     Inbox inbox = Inbox.create(system);
     inbox.send(controller, execute);
+    Object submitResult;
     try {
-      Object submitResult = inbox.receive(Duration.create(2, TimeUnit.MINUTES));
-      if (submitResult instanceof NoResult) {
-        LOG.info("Query returned with no result. Query: '" + getJoinedStatements(statements) + "'");
-        return rows;
-
-      } else if (submitResult instanceof ExecutionFailed) {
-        ExecutionFailed error = (ExecutionFailed) submitResult;
-        LOG.error("Failed to execute statements.{}. user: {}, Query: {}. Exception: {}",
-          error.getMessage(), config.getUsername(), getJoinedStatements(statements), error.getError());
-        throw new ServiceFormattedException(error.getMessage(), error.getError());
-
-      } else if (submitResult instanceof ResultSetHolder){
-        ResultSetHolder holder = (ResultSetHolder) submitResult;
-        ActorRef iterator = holder.getIterator();
-        while(true) {
-          inbox.send(iterator, new Next());
-          Object receive = inbox.receive(Duration.create(1, TimeUnit.MINUTES));
-
-          if(receive instanceof Result) {
-            Result result = (Result) receive;
-            rows.addAll(result.getRows());
-          }
-
-          if(receive instanceof NoMoreItems) {
-            break;
-          }
-
-          if(receive instanceof FetchFailed) {
-            FetchFailed error = (FetchFailed) receive;
-            LOG.error("Failed to fetch results for statements.{}. user: {}, Query: {}. Exception: {}",
-              error.getMessage(), config.getUsername(), getJoinedStatements(statements), error.getError());
-            throw new ServiceFormattedException(error.getMessage(), error.getError());
-          }
-        }
-
-      }
-    } catch(Throwable ex) {
+      submitResult = inbox.receive(Duration.create(2, TimeUnit.MINUTES));
+    } catch (Throwable ex) {
       String stmts = getJoinedStatements(statements);
       String errorMessage = "Query timed out for user: " + config.getUsername() + ". Query: '" + stmts + "'";
       LOG.error(errorMessage, ex);
       throw new ServiceFormattedException(errorMessage, ex);
+    }
+    if (submitResult instanceof NoResult) {
+      LOG.info("Query returned with no result. Query: '" + getJoinedStatements(statements) + "'");
+      return rows;
+
+    } else if (submitResult instanceof ExecutionFailed) {
+      ExecutionFailed error = (ExecutionFailed) submitResult;
+      LOG.error("Failed to execute statements.{}. user: {}, Query: {}. Exception: {}",
+        error.getMessage(), config.getUsername(), getJoinedStatements(statements), error.getError());
+      throw new ServiceFormattedException(error.getMessage(), error.getError());
+
+    } else if (submitResult instanceof ResultSetHolder) {
+      ResultSetHolder holder = (ResultSetHolder) submitResult;
+      ActorRef iterator = holder.getIterator();
+      while (true) {
+        inbox.send(iterator, new Next());
+        Object receive;
+        try {
+          receive = inbox.receive(Duration.create(1, TimeUnit.MINUTES));
+        } catch (Throwable ex) {
+          String stmts = getJoinedStatements(statements);
+          String errorMessage = "Query timed out to fetch results for user: " + config.getUsername() + ". Query: '" + stmts + "'";
+          LOG.error(errorMessage, ex);
+          throw new ServiceFormattedException(errorMessage, ex);
+        }
+
+        if (receive instanceof Result) {
+          Result result = (Result) receive;
+          rows.addAll(result.getRows());
+        }
+
+        if (receive instanceof NoMoreItems) {
+          break;
+        }
+
+        if (receive instanceof FetchFailed) {
+          FetchFailed error = (FetchFailed) receive;
+          LOG.error("Failed to fetch results for statements.{}. user: {}, Query: {}. Exception: {}",
+            error.getMessage(), config.getUsername(), getJoinedStatements(statements), error.getError());
+          throw new ServiceFormattedException(error.getMessage(), error.getError());
+        }
+      }
 
     }
+
     return rows;
   }
 
