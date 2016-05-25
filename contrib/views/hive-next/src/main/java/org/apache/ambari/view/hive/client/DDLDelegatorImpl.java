@@ -15,6 +15,7 @@ import org.apache.ambari.view.hive.utils.ServiceFormattedException;
 import org.apache.ambari.view.hive2.actor.ResultSetIterator;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
+import org.apache.ambari.view.hive2.actor.message.GetColumnMetadataJob;
 import org.apache.ambari.view.hive2.actor.message.HiveJob;
 import org.apache.ambari.view.hive2.actor.message.SyncJob;
 import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
@@ -64,7 +65,7 @@ public class DDLDelegatorImpl implements DDLDelegator {
         @Override
         public String apply(Row input) {
           Object[] values = input.getRow();
-          return values.length > 0 ? (String)values[0] : NO_VALUE_MARKER;
+          return values.length > 0 ? (String) values[0] : NO_VALUE_MARKER;
         }
       }).toList();
   }
@@ -80,7 +81,74 @@ public class DDLDelegatorImpl implements DDLDelegator {
 
   @Override
   public List<ColumnDescription> getTableDescription(ConnectionConfig config, String database, String table, String like, boolean extended) {
-    return null;
+    return getTableDescription(config, database, table, like);
+  }
+
+  private List<ColumnDescription> getTableDescription(ConnectionConfig config, String databasePattern, String tablePattern, String columnPattern) {
+    List<Row> rows = Lists.newArrayList();
+    List<ColumnDescription> descriptions = Lists.newArrayList();
+    Connect connect = config.createConnectMessage();
+    HiveJob job = new GetColumnMetadataJob(config.getUsername(), context, databasePattern, tablePattern, columnPattern);
+    ExecuteJob execute = new ExecuteJob(connect, job);
+
+    Inbox inbox = Inbox.create(system);
+    inbox.send(controller, execute);
+    Object submitResult;
+    try {
+      submitResult = inbox.receive(Duration.create(2, TimeUnit.MINUTES));
+    } catch (Throwable ex) {
+      String errorMessage = "Query timed out to fetch table description for user: " + config.getUsername();
+      LOG.error(errorMessage, ex);
+      throw new ServiceFormattedException(errorMessage, ex);
+    }
+
+    if (submitResult instanceof ExecutionFailed) {
+      ExecutionFailed error = (ExecutionFailed) submitResult;
+      LOG.error("Failed to get the table description");
+      throw new ServiceFormattedException(error.getMessage(), error.getError());
+
+    } else if (submitResult instanceof ResultSetHolder) {
+      ResultSetHolder holder = (ResultSetHolder) submitResult;
+      ActorRef iterator = holder.getIterator();
+      while (true) {
+        inbox.send(iterator, new Next());
+        Object receive;
+        try {
+          receive = inbox.receive(Duration.create(1, TimeUnit.MINUTES));
+        } catch (Throwable ex) {
+          String errorMessage = "Query timed out to fetch results for user: " + config.getUsername();
+          LOG.error(errorMessage, ex);
+          throw new ServiceFormattedException(errorMessage, ex);
+        }
+
+        if (receive instanceof Result) {
+          Result result = (Result) receive;
+          result.getRows();
+          rows.addAll(result.getRows());
+        }
+
+        if (receive instanceof NoMoreItems) {
+          break;
+        }
+
+        if (receive instanceof FetchFailed) {
+          FetchFailed error = (FetchFailed) receive;
+          LOG.error("Failed to fetch results ");
+          throw new ServiceFormattedException(error.getMessage(), error.getError());
+        }
+      }
+
+    }
+
+    for (Row row : rows) {
+      Object[] values = row.getRow();
+      String name = (String)values[3];
+      String type = (String)values[5];
+      int position = (Integer)values[16];
+      descriptions.add(new ColumnDescriptionShort(name, type, position));
+    }
+
+    return descriptions;
   }
 
   private List<Row> getRowsFromDB(ConnectionConfig config, String[] statements) {

@@ -86,7 +86,7 @@ public class OperationController extends HiveActor {
       if (job.getJob().getType() == HiveJob.Type.ASYNC) {
         sendJob(job.getConnect(), (AsyncJob) job.getJob());
       } else if (job.getJob().getType() == HiveJob.Type.SYNC) {
-        sendSyncJob(job.getConnect(), (SyncJob) job.getJob());
+        sendSyncJob(job.getConnect(), job.getJob());
       }
     }
 
@@ -192,7 +192,7 @@ public class OperationController extends HiveActor {
     return subActor;
   }
 
-  private void sendSyncJob(Connect connect, SyncJob job) {
+  private void sendSyncJob(Connect connect, HiveJob job) {
     String username = job.getUsername();
     ActorRef subActor = null;
     // Check if there is available actors to process this

@@ -20,6 +20,7 @@ package org.apache.ambari.view.hive.resources.browser;
 
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.ViewResourceHandler;
+import org.apache.ambari.view.hive.client.ColumnDescription;
 import org.apache.ambari.view.hive.client.ConnectionConfig;
 import org.apache.ambari.view.hive.client.DDLDelegator;
 import org.apache.ambari.view.hive.client.DDLDelegatorImpl;
@@ -214,10 +215,12 @@ public class HiveBrowserService {
     String curl = null;
     try {
       JSONObject response = new JSONObject();
+      DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
+      List<ColumnDescription> descriptions = delegator.getTableDescription(getHiveConnectionConfig(), db, table, "%", false);
       //TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
       //List<ColumnDescription> columnDescriptions = connectionLocal.get(context).ddl()
       //    .getTableDescription(session, db, table, like, extendedTableDescription);
-      //response.put("columns", columnDescriptions);
+      response.put("columns", descriptions);
       response.put("database", db);
       response.put("table", table);
 
