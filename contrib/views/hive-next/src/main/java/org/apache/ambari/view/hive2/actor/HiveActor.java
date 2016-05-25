@@ -13,14 +13,14 @@ public abstract class HiveActor extends UntypedActor {
     final public void onReceive(Object message) throws Exception {
         HiveMessage hiveMessage = new HiveMessage(message);
         if(LOG.isDebugEnabled()){
-            LOG.debug("Received message, generated id" + hiveMessage.getId() +
-                    "sent by" + sender() + "recieved by" + self());
+            LOG.debug("Received message: " + message.getClass().getName() + ", generated id: " + hiveMessage.getId() +
+                    " sent by: " + sender() + ", recieved by" + self());
         }
 
         handleMessage(hiveMessage);
 
         if(LOG.isDebugEnabled()){
-            LOG.debug("Message submitted" + hiveMessage.getId());
+            LOG.debug("Message submitted: " + hiveMessage.getId());
 
         }
 

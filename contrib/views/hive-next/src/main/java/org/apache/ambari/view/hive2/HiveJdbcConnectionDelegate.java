@@ -1,11 +1,14 @@
 package org.apache.ambari.view.hive2;
 
 import com.google.common.base.Optional;
+import org.apache.ambari.view.hive2.actor.message.DDLJob;
+import org.apache.ambari.view.hive2.actor.message.GetColumnMetadataJob;
 import org.apache.ambari.view.hive2.actor.message.HiveJob;
 import org.apache.ambari.view.hive2.internal.HiveResult;
 import org.apache.hive.jdbc.HiveConnection;
 import org.apache.hive.jdbc.HiveStatement;
 
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -16,7 +19,7 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
   private HiveStatement currentStatement;
 
   @Override
-  public Optional<ResultSet> execute(HiveConnection connection, HiveJob job) throws SQLException {
+  public Optional<ResultSet> execute(HiveConnection connection, DDLJob job) throws SQLException {
 
     try {
       Statement statement = connection.createStatement();
@@ -49,7 +52,7 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
   }
 
   @Override
-  public Optional<ResultSet> executeSync(HiveConnection connection, HiveJob job) throws SQLException {
+  public Optional<ResultSet> executeSync(HiveConnection connection, DDLJob job) throws SQLException {
     try {
       Statement statement = connection.createStatement();
       currentStatement = (HiveStatement) statement;
@@ -73,6 +76,14 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
       currentStatement.close();
       throw e;
     }
+  }
+
+  @Override
+  public Optional<ResultSet> getColumnMetadata(HiveConnection connection, GetColumnMetadataJob job) throws SQLException {
+    DatabaseMetaData metaData = connection.getMetaData();
+    ResultSet resultSet = metaData.getColumns("", job.getSchemaPattern(), job.getTablePattern(), job.getColumnPattern());
+    currentResultSet = resultSet;
+    return Optional.of(resultSet);
   }
 
   @Override

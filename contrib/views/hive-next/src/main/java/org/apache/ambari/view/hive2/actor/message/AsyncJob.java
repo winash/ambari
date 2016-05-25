@@ -5,7 +5,7 @@ import org.apache.ambari.view.ViewContext;
 /**
  * Message to be sent when a statement has to be executed
  */
-public class AsyncJob extends HiveJob {
+public class AsyncJob extends DDLJob {
   private final String jobId;
   private final String logFile;
 
