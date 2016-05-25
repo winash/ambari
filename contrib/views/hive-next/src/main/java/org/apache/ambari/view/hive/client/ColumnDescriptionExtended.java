@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -27,77 +27,48 @@ public class ColumnDescriptionExtended implements ColumnDescription {
   private boolean sortedBy;
   private boolean clusteredBy;
 
-  private ColumnDescriptionExtended(String name, String type, String comment, boolean partitioned,
+  public ColumnDescriptionExtended(String name, String type, String comment, boolean partitioned,
                                    boolean sortedBy, boolean clusteredBy, int position) {
-    setName(name);
-    setType(type);
-    setPosition(position);
-    setComment(comment);
-    setPartitioned(partitioned);
-    setSortedBy(sortedBy);
-    setClusteredBy(clusteredBy);
+    this.name = name;
+    this.type = type;
+    this.comment = comment;
+    this.partitioned = partitioned;
+    this.sortedBy = sortedBy;
+    this.clusteredBy = clusteredBy;
+    this.position = position;
   }
 
-  public static ColumnDescription createExtendedColumnDescription(String name, String type, String comment,
-                                                                  boolean partitioned, boolean sortedBy, boolean clusteredBy,
-                                                                  int position) {
-    return new ColumnDescriptionExtended(name, type, comment, partitioned, sortedBy, clusteredBy, position);
+  public ColumnDescription createShortColumnDescription() {
+    return new ColumnDescriptionShort(getName(), getType(), getPosition());
   }
 
   public String getName() {
     return name;
   }
 
-  public void setName(String name) {
-    this.name = name;
-  }
-
   public String getType() {
     return type;
-  }
-
-  public void setType(String type) {
-    this.type = type;
   }
 
   public int getPosition() {
     return position;
   }
 
-  public void setPosition(int position) {
-    this.position = position;
-  }
-
   public String getComment() {
     return comment;
-  }
-
-  public void setComment(String comment) {
-    this.comment = comment;
   }
 
   public boolean isPartitioned() {
     return partitioned;
   }
 
-  public void setPartitioned(boolean partitioned) {
-    this.partitioned = partitioned;
-  }
-
   public boolean isSortedBy() {
     return sortedBy;
-  }
-
-  public void setSortedBy(boolean sortedBy) {
-    this.sortedBy = sortedBy;
   }
 
   public boolean isClusteredBy() {
     return clusteredBy;
   }
 
-  public void setClusteredBy(boolean clusteredBy) {
-    this.clusteredBy = clusteredBy;
-  }
 
 }

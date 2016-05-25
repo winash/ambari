@@ -2,19 +2,20 @@ package org.apache.ambari.view.hive2.actor;
 
 import akka.actor.ActorRef;
 import com.google.common.collect.Lists;
+import org.apache.ambari.view.hive.client.ColumnDescription;
+import org.apache.ambari.view.hive.client.ColumnDescriptionExtended;
+import org.apache.ambari.view.hive.client.Row;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.job.FetchFailed;
 import org.apache.ambari.view.hive2.actor.message.job.Next;
 import org.apache.ambari.view.hive2.actor.message.job.NoMoreItems;
 import org.apache.ambari.view.hive2.actor.message.job.Result;
 
-import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -69,7 +70,7 @@ public class ResultSetIterator extends HiveActor {
     try {
       while (resultSet.next() && index < batchSize) {
         index++;
-        rows.add(new Row(columnCount, resultSet));
+        rows.add(getRowFromResultSet(resultSet));
       }
 
       if (index == 0) {
@@ -86,59 +87,25 @@ public class ResultSetIterator extends HiveActor {
     }
   }
 
+  private Row getRowFromResultSet(ResultSet resultSet) throws SQLException {
+    Object[] values = new Object[columnCount];
+    for(int i = 0; i < columnCount; i++) {
+      values[i] = resultSet.getObject(i + 1);
+    }
+    return new Row(values);
+  }
+
   private void initialize() throws SQLException {
     metaDataFetched = true;
-    nf.setRoundingMode(RoundingMode.FLOOR);
-    nf.setMinimumFractionDigits(0);
-    nf.setMaximumFractionDigits(2);
     metaData = resultSet.getMetaData();
     columnCount = metaData.getColumnCount();
-    colNames = new Row(columnCount);
+    List<ColumnDescription> columnDescriptions = Lists.newArrayList();
+    for(int i = 1; i <= columnCount; i++) {
+      String columnName = metaData.getColumnName(i);
+      String typeName = metaData.getColumnTypeName(i);
+      ColumnDescription description = new ColumnDescriptionExtended(columnName, typeName, "", false, false, false, i);
+      columnDescriptions.add(description);
+    }
+    colNames = new Row(columnDescriptions.toArray());
   }
-
-
-  public class Row {
-    String[] values;
-
-    public Row(int size) throws SQLException {
-      values = new String[size];
-      for (int i = 0; i < size; i++) {
-        values[i] = metaData.getColumnLabel(i + 1);
-      }
-    }
-
-
-    public Row(int size, ResultSet rs) throws SQLException {
-      values = new String[size];
-      for (int i = 0; i < size; i++) {
-        if (nf != null) {
-          Object object = rs.getObject(i + 1);
-          if (object == null) {
-            values[i] = null;
-          } else if (object instanceof Number) {
-            values[i] = nf.format(object);
-          } else {
-            values[i] = object.toString();
-          }
-        } else {
-          values[i] = rs.getString(i + 1);
-        }
-        values[i] = values[i] == null ? NULL : values[i];
-
-      }
-
-    }
-
-    public String[] getValues() {
-      return values;
-    }
-
-    @Override
-    public String toString() {
-      return "Row{" +
-        "values=" + Arrays.toString(values) +
-        '}';
-    }
-  }
-
 }

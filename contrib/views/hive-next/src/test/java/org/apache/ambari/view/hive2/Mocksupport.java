@@ -49,7 +49,7 @@ abstract class MockSupport {
         expect(statement.getResultSet()).andReturn(resultSet);
         expect(resultSet.getMetaData()).andReturn(resultSetMetaData);
         expect(resultSetMetaData.getColumnCount()).andReturn(1);
-        expect(resultSetMetaData.getColumnLabel(1)).andReturn("test");
+        expect(resultSetMetaData.getColumnName(1)).andReturn("test");
         expect(resultSet.next()).andReturn(true);
         expect(resultSet.getObject(1)).andReturn("test");
 

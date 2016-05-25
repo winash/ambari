@@ -68,28 +68,13 @@ public class ColumnDescriptionImpl implements ColumnDescription, Serializable {
   }
 
   @Override
-  public void setName(String name) {
-    this.name = name;
-  }
-
-  @Override
   public String getType() {
     return type;
   }
 
   @Override
-  public void setType(String type) {
-    this.type = type;
-  }
-
-  @Override
   public int getPosition() {
     return this.position;
-  }
-
-  @Override
-  public void setPosition(int position) {
-    this.position = position;
   }
 
   public Integer getPrecision() {
@@ -98,14 +83,6 @@ public class ColumnDescriptionImpl implements ColumnDescription, Serializable {
 
   public Integer getScale() {
     return scale;
-  }
-
-  public void setPrecision(Integer precision) {
-    this.precision = precision;
-  }
-
-  public void setScale(Integer scale) {
-    this.scale = scale;
   }
 
   @Override

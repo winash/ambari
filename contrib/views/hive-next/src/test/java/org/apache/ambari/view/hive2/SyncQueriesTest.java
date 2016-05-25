@@ -6,6 +6,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Inbox;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
+import org.apache.ambari.view.hive.client.Row;
 import org.apache.ambari.view.hive2.actor.OperationController;
 import org.apache.ambari.view.hive2.actor.ResultSetIterator;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
@@ -93,10 +94,10 @@ public class SyncQueriesTest extends MockSupport {
 
 
                 Result result = (Result) receive;
-                List<ResultSetIterator.Row> rows = result.getRows();
+                List<Row> rows = result.getRows();
                 System.out.println("Fetched " + rows.size() + " entries.");
-                for (ResultSetIterator.Row row : rows) {
-                    assertArrayEquals(row.getValues(), new String[]{"test"});
+                for (Row row : rows) {
+                    assertArrayEquals(row.getRow(), new String[]{"test"});
                 }
 
                 inbox.send(iterator, new Next());

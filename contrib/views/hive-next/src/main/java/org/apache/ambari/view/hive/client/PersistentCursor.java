@@ -77,8 +77,8 @@ public class PersistentCursor implements Iterator<Row>, Iterable<Row> {
     return offset;
   }
 
-  private List<ResultSetIterator.Row> getRowsFromDB(ConnectionConfig config, String[] statements) {
-    List<ResultSetIterator.Row> rows = Lists.newArrayList();
+  private List<Row> getRowsFromDB(ConnectionConfig config, String[] statements) {
+    List<Row> rows = Lists.newArrayList();
     Connect connect = config.createConnectMessage();
     HiveJob job = new SyncJob(config.getUsername(), statements, context);
     ExecuteJob execute = new ExecuteJob(connect, job);

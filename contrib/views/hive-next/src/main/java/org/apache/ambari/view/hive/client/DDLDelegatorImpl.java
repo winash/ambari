@@ -52,26 +52,26 @@ public class DDLDelegatorImpl implements DDLDelegator {
 
   @Override
   public List<String> getDbList(ConnectionConfig config, String like) {
-    List<ResultSetIterator.Row> rows = getRowsFromDB(config, new String[]{
+    List<Row> rows = getRowsFromDB(config, new String[]{
       String.format("show databases like '%s'", like)
     });
     return getFirstColumnValues(rows);
   }
 
-  private ImmutableList<String> getFirstColumnValues(List<ResultSetIterator.Row> rows) {
+  private ImmutableList<String> getFirstColumnValues(List<Row> rows) {
     return FluentIterable.from(rows)
-      .transform(new Function<ResultSetIterator.Row, String>() {
+      .transform(new Function<Row, String>() {
         @Override
-        public String apply(ResultSetIterator.Row input) {
-          String[] values = input.getValues();
-          return values.length > 0 ? values[0] : NO_VALUE_MARKER;
+        public String apply(Row input) {
+          Object[] values = input.getRow();
+          return values.length > 0 ? (String)values[0] : NO_VALUE_MARKER;
         }
       }).toList();
   }
 
   @Override
   public List<String> getTableList(ConnectionConfig config, String database, String like) {
-    List<ResultSetIterator.Row> rows = getRowsFromDB(config, new String[]{
+    List<Row> rows = getRowsFromDB(config, new String[]{
       String.format("use %s", database),
       String.format("show tables like '%s'", like)
     });
@@ -83,8 +83,8 @@ public class DDLDelegatorImpl implements DDLDelegator {
     return null;
   }
 
-  private List<ResultSetIterator.Row> getRowsFromDB(ConnectionConfig config, String[] statements) {
-    List<ResultSetIterator.Row> rows = Lists.newArrayList();
+  private List<Row> getRowsFromDB(ConnectionConfig config, String[] statements) {
+    List<Row> rows = Lists.newArrayList();
     Connect connect = config.createConnectMessage();
     HiveJob job = new SyncJob(config.getUsername(), statements, context);
     ExecuteJob execute = new ExecuteJob(connect, job);

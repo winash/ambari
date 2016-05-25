@@ -18,55 +18,29 @@
 
 package org.apache.ambari.view.hive.client;
 
-import java.util.ArrayList;
+public class ColumnDescriptionShort implements ColumnDescription {
+  private String name;
+  private String type;
+  private int position;
 
-public class ColumnDescriptionShort extends ArrayList<Object> implements ColumnDescription {
-  public static final int INITIAL_CAPACITY = 3;
-  public static final int NAME_INDEX = 0;
-  public static final int TYPE_INDEX = 1;
-  public static final int POSITION_INDEX = 2;
-
-  private ColumnDescriptionShort(String name, String type, int position) {
-    super(INITIAL_CAPACITY);
-    this.add(null);
-    this.add(null);
-    this.add(null);
-    setName(name);
-    setType(type);
-    setPosition(position);
-  }
-
-  public static ColumnDescription createShortColumnDescription(String name, String type, int position) {
-    return new ColumnDescriptionShort(name, type, position);
+  public ColumnDescriptionShort(String name, String type, int position) {
+    this.name = name;
+    this.type = type;
+    this.position = position;
   }
 
   @Override
   public String getName() {
-    return (String) this.get(NAME_INDEX);
-  }
-
-  @Override
-  public void setName(String name) {
-    this.set(NAME_INDEX, name);
+    return name;
   }
 
   @Override
   public String getType() {
-    return (String) this.get(TYPE_INDEX);
-  }
-
-  @Override
-  public void setType(String type) {
-    this.set(TYPE_INDEX, type);
+    return type;
   }
 
   @Override
   public int getPosition() {
-    return (Integer) this.get(POSITION_INDEX);
-  }
-
-  @Override
-  public void setPosition(int position) {
-    this.set(POSITION_INDEX, position);
+    return position;
   }
 }
