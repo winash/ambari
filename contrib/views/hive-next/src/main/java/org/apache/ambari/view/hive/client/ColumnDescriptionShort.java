@@ -18,12 +18,19 @@
 
 package org.apache.ambari.view.hive.client;
 
-public class ColumnDescriptionShort implements ColumnDescription {
+import java.util.ArrayList;
+
+public class ColumnDescriptionShort extends ArrayList<Object> implements ColumnDescription {
+  private static final int INITIAL_CAPACITY = 3;
   private String name;
   private String type;
   private int position;
 
   public ColumnDescriptionShort(String name, String type, int position) {
+    super(INITIAL_CAPACITY);
+    add(name);
+    add(type);
+    add(position);
     this.name = name;
     this.type = type;
     this.position = position;

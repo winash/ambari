@@ -19,21 +19,29 @@
 package org.apache.ambari.view.hive.resources.jobs;
 
 
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.client.ColumnDescription;
 import org.apache.ambari.view.hive.client.HiveClientException;
+import org.apache.ambari.view.hive.client.PersistentCursor;
+import org.apache.ambari.view.hive.client.Row;
+import org.apache.ambari.view.hive.utils.BadRequestFormattedException;
 import org.apache.ambari.view.hive.utils.HiveClientFormattedException;
 import org.apache.ambari.view.hive.utils.ServiceFormattedException;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
+import org.apache.hadoop.hbase.util.Strings;
 
 import javax.ws.rs.core.Response;
-import java.lang.Object;
-import java.lang.String;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
@@ -54,30 +62,30 @@ public class ResultsPaginationController {
 
   private static final long EXPIRING_TIME = 10*60*1000;  // 10 minutes
   private static final int DEFAULT_FETCH_COUNT = 50;
-  //private Map<String, Cursor> resultsCache;
+  private Map<String, PersistentCursor<Row>> resultsCache;
 
-  /*public static class CustomTimeToLiveExpirationPolicy extends PassiveExpiringMap.ConstantTimeToLiveExpirationPolicy<String, Cursor> {
+  public static class CustomTimeToLiveExpirationPolicy extends PassiveExpiringMap.ConstantTimeToLiveExpirationPolicy<String, PersistentCursor<Row>> {
     public CustomTimeToLiveExpirationPolicy(long timeToLiveMillis) {
       super(timeToLiveMillis);
     }
 
     @Override
-    public long expirationTime(String key, Cursor value) {
+    public long expirationTime(String key, PersistentCursor<Row> value) {
       if (key.startsWith("$")) {
         return -1;  //never expire
       }
       return super.expirationTime(key, value);
     }
-  }*/
+  }
 
-  /*private Map<String, Cursor> getResultsCache() {
+  private Map<String, PersistentCursor<Row>> getResultsCache() {
     if (resultsCache == null) {
-      PassiveExpiringMap<String, Cursor> resultsCacheExpiringMap =
-          new PassiveExpiringMap<String, Cursor>(new CustomTimeToLiveExpirationPolicy(EXPIRING_TIME));
+      PassiveExpiringMap<String, PersistentCursor<Row>> resultsCacheExpiringMap =
+          new PassiveExpiringMap<>(new CustomTimeToLiveExpirationPolicy(EXPIRING_TIME));
       resultsCache = Collections.synchronizedMap(resultsCacheExpiringMap);
     }
     return resultsCache;
-  }*/
+  }
 
   /**
    * Renew timer of cache entry.
@@ -85,22 +93,23 @@ public class ResultsPaginationController {
    * @return false if entry not found; true if renew was ok
    */
   public boolean keepAlive(String key, String searchId) {
-    /*if (searchId == null)
+    if (searchId == null)
       searchId = DEFAULT_SEARCH_ID;
     String effectiveKey = key + "?" + searchId;
     if (!getResultsCache().containsKey(effectiveKey)) {
       return false;
     }
-    Cursor cursor = getResultsCache().get(effectiveKey);
-    getResultsCache().put(effectiveKey, cursor);*/
+    PersistentCursor cursor = getResultsCache().get(effectiveKey);
+    getResultsCache().put(effectiveKey, cursor);
     return true;
   }
 
-  /*private Cursor getResultsSet(String key, Callable<Cursor> makeResultsSet) {
+  private PersistentCursor<Row> getResultsSet(String key, Callable<PersistentCursor<Row>> makeResultsSet) {
     if (!getResultsCache().containsKey(key)) {
-      Cursor resultSet = null;
+      PersistentCursor resultSet = null;
       try {
         resultSet = makeResultsSet.call();
+        resultSet.reset();
       } catch (HiveClientException ex) {
         throw new HiveClientFormattedException(ex);
       } catch (Exception ex) {
@@ -110,29 +119,52 @@ public class ResultsPaginationController {
     }
 
     return getResultsCache().get(key);
-  }*/
+  }
 
-  /*public Response.ResponseBuilder request(String key, String searchId, boolean canExpire, String fromBeginning, Integer count, String format, Callable<Cursor> makeResultsSet) throws HiveClientException {
+  public Response.ResponseBuilder request(String key, String searchId, boolean canExpire, String fromBeginning, Integer count, String format, String requestedColumns, Callable<PersistentCursor<Row>> makeResultsSet) throws HiveClientException {
     if (searchId == null)
       searchId = DEFAULT_SEARCH_ID;
     key = key + "?" + searchId;
     if (!canExpire)
       key = "$" + key;
-    if (fromBeginning != null && fromBeginning.equals("true") && getResultsCache().containsKey(key))
+    if (fromBeginning != null && fromBeginning.equals("true") && getResultsCache().containsKey(key)) {
       getResultsCache().remove(key);
-    Cursor resultSet = getResultsSet(key, makeResultsSet);
+    }
+
+    PersistentCursor<Row> resultSet = getResultsSet(key, makeResultsSet);
 
     if (count == null)
       count = DEFAULT_FETCH_COUNT;
 
-    ArrayList<ColumnDescription> schema = resultSet.getSchema();
-    ArrayList<Object[]> rows = new ArrayList<Object[]>(count);
-    int read = resultSet.readRaw(rows, count);
+    List<ColumnDescription> allschema = resultSet.getDescription();
+    List<Row> allRowEntries = FluentIterable.from(resultSet)
+      .limit(count).toList();
+
+    List<ColumnDescription> schema = allschema;
+
+    final Set<Integer> selectedColumns = getRequestedColumns(requestedColumns);
+    if (!selectedColumns.isEmpty()) {
+      schema = filter(allschema, selectedColumns);
+    }
+
+    List<Object[]> rows = FluentIterable.from(allRowEntries)
+      .transform(new Function<Row, Object[]>() {
+        @Override
+        public Object[] apply(Row input) {
+          if(!selectedColumns.isEmpty()) {
+            return filter(Lists.newArrayList(input.getRow()), selectedColumns).toArray();
+          } else {
+            return input.getRow();
+          }
+        }
+      }).toList();
+
+    int read = rows.size();
     if(format != null && format.equalsIgnoreCase("d3")) {
-      List<Map<String,Object>> results = new ArrayList<Map<String,Object>>();
+      List<Map<String,Object>> results = new ArrayList<>();
       for(int i=0; i<rows.size(); i++) {
         Object[] row = rows.get(i);
-        Map<String, Object> keyValue = new HashMap<String, Object>(row.length);
+        Map<String, Object> keyValue = new HashMap<>(row.length);
         for(int j=0; j<row.length; j++) {
           //Replace dots in schema with underscore
           String schemaName = schema.get(j).getName();
@@ -152,7 +184,7 @@ public class ResultsPaginationController {
       resultsResponse.setHasResults(true);
       return Response.ok(resultsResponse);
     }
-  }*/
+  }
 
   public static Response.ResponseBuilder emptyResponse() {
     ResultsResponse resultsResponse = new ResultsResponse();
@@ -165,23 +197,47 @@ public class ResultsPaginationController {
     return Response.ok(resultsResponse);
   }
 
+  private <T> List<T> filter(List<T> list, Set<Integer> selectedColumns) {
+    List<T> filtered = Lists.newArrayList();
+    for(int i: selectedColumns) {
+      filtered.add(list.get(i));
+    }
+
+    return filtered;
+  }
+
+  private Set<Integer> getRequestedColumns(String requestedColumns) {
+    if(Strings.isEmpty(requestedColumns)) {
+      return new HashSet<>();
+    }
+    Set<Integer> selectedColumns = Sets.newHashSet();
+    for (String columnRequested : requestedColumns.split(",")) {
+      try {
+        selectedColumns.add(Integer.parseInt(columnRequested));
+      } catch (NumberFormatException ex) {
+        throw new BadRequestFormattedException("Columns param should be comma-separated integers", ex);
+      }
+    }
+    return selectedColumns;
+  }
+
   private static class ResultsResponse {
-    private ArrayList<ColumnDescription> schema;
-    private ArrayList<String[]> rows;
+    private List<ColumnDescription> schema;
+    private List<String[]> rows;
     private int readCount;
     private boolean hasNext;
     private long offset;
     private boolean hasResults;
 
-    public void setSchema(ArrayList<ColumnDescription> schema) {
+    public void setSchema(List<ColumnDescription> schema) {
       this.schema = schema;
     }
 
-    public ArrayList<ColumnDescription> getSchema() {
+    public List<ColumnDescription> getSchema() {
       return schema;
     }
 
-    public void setRows(ArrayList<Object[]> rows) {
+    public void setRows(List<Object[]> rows) {
       if( null == rows ){
         this.rows = null;
       }
@@ -200,7 +256,7 @@ public class ResultsPaginationController {
       }
     }
 
-    public ArrayList<String[]> getRows() {
+    public List<String[]> getRows() {
       return rows;
     }
 

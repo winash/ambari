@@ -3,16 +3,14 @@ package org.apache.ambari.view.hive.client;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Inbox;
-import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.Service;
-import com.google.inject.Inject;
+import com.google.common.collect.Lists;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.utils.ServiceFormattedException;
-import org.apache.ambari.view.hive2.actor.ResultSetIterator;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
 import org.apache.ambari.view.hive2.actor.message.GetColumnMetadataJob;
@@ -29,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -53,53 +52,116 @@ public class DDLDelegatorImpl implements DDLDelegator {
 
   @Override
   public List<String> getDbList(ConnectionConfig config, String like) {
-    List<Row> rows = getRowsFromDB(config, new String[]{
-      String.format("show databases like '%s'", like)
-    });
-    return getFirstColumnValues(rows);
-  }
-
-  private ImmutableList<String> getFirstColumnValues(List<Row> rows) {
-    return FluentIterable.from(rows)
-      .transform(new Function<Row, String>() {
-        @Override
-        public String apply(Row input) {
-          Object[] values = input.getRow();
-          return values.length > 0 ? (String) values[0] : NO_VALUE_MARKER;
-        }
-      }).toList();
+    Optional<Result> rowsFromDB = getRowsFromDB(config, getDatabaseListStatements(like));
+    return rowsFromDB.isPresent() ? getFirstColumnValues(rowsFromDB.get().getRows()) : Lists.<String>newArrayList();
   }
 
   @Override
   public List<String> getTableList(ConnectionConfig config, String database, String like) {
-    List<Row> rows = getRowsFromDB(config, new String[]{
-      String.format("use %s", database),
-      String.format("show tables like '%s'", like)
-    });
-    return getFirstColumnValues(rows);
+    Optional<Result> rowsFromDB = getRowsFromDB(config, getTableListStatements(database, like));
+    return rowsFromDB.isPresent() ? getFirstColumnValues(rowsFromDB.get().getRows()) : Lists.<String>newArrayList();
   }
 
   @Override
   public List<ColumnDescription> getTableDescription(ConnectionConfig config, String database, String table, String like, boolean extended) {
-    return getTableDescription(config, database, table, like);
+ Optional<Result> resultOptional = getTableDescription(config, database, table, like);
+    List<ColumnDescription> descriptions = new ArrayList<>();
+    if(resultOptional.isPresent()) {
+      for (Row row : resultOptional.get().getRows()) {
+        Object[] values = row.getRow();
+        String name = (String) values[3];
+        String type = (String) values[5];
+        int position = (Integer) values[16];
+        descriptions.add(new ColumnDescriptionShort(name, type, position));
+      }
+    }
+    return descriptions;
   }
 
-  private List<ColumnDescription> getTableDescription(ConnectionConfig config, String databasePattern, String tablePattern, String columnPattern) {
-    List<Row> rows = Lists.newArrayList();
-    List<ColumnDescription> descriptions = Lists.newArrayList();
+  @Override
+  public Cursor<Row> getDbListCursor(ConnectionConfig config, String like) {
+    Optional<Result> rowsFromDB = getRowsFromDB(config, getDatabaseListStatements(like));
+    if (rowsFromDB.isPresent()) {
+      Result result = rowsFromDB.get();
+      return new PersistentCursor<>(result.getRows(), result.getColumns());
+    } else {
+      return new PersistentCursor<>(Lists.<Row>newArrayList(), Lists.<ColumnDescription>newArrayList());
+    }
+  }
+
+  @Override
+  public Cursor<Row> getTableListCursor(ConnectionConfig config, String database, String like) {
+    Optional<Result> rowsFromDB = getRowsFromDB(config, getTableListStatements(database, like));
+    if (rowsFromDB.isPresent()) {
+      Result result = rowsFromDB.get();
+      return new PersistentCursor<>(result.getRows(), result.getColumns());
+    } else {
+      return new PersistentCursor<>(Lists.<Row>newArrayList(), Lists.<ColumnDescription>newArrayList());
+    }
+  }
+
+  @Override
+  public Cursor<Row> getTableDescriptionCursor(ConnectionConfig config, String database, String table, String like, boolean extended) {
+    Optional<Result> tableDescriptionOptional = getTableDescription(config, database, table, like);
+    if(tableDescriptionOptional.isPresent()) {
+      Result result = tableDescriptionOptional.get();
+      return new PersistentCursor<>(result.getRows(), result.getColumns());
+    } else {
+      return new PersistentCursor<>(Lists.<Row>newArrayList(), Lists.<ColumnDescription>newArrayList());
+    }
+  }
+
+  private String[] getDatabaseListStatements(String like) {
+    return new String[]{
+      String.format("show databases like '%s'", like)
+    };
+  }
+
+  private String[] getTableListStatements(String database, String like) {
+    return new String[]{
+      String.format("use %s", database),
+      String.format("show tables like '%s'", like)
+    };
+  }
+
+  private Optional<Result> getRowsFromDB(ConnectionConfig config, String[] statements) {
+    Connect connect = config.createConnectMessage();
+    HiveJob job = new SyncJob(config.getUsername(), statements, context);
+    ExecuteJob execute = new ExecuteJob(connect, job);
+
+    LOG.info("Executing query: {}, for user: {}", getJoinedStatements(statements), job.getUsername());
+
+    return getResultFromDB(execute);
+  }
+
+  private Optional<Result> getTableDescription(ConnectionConfig config, String databasePattern, String tablePattern, String columnPattern) {
     Connect connect = config.createConnectMessage();
     HiveJob job = new GetColumnMetadataJob(config.getUsername(), context, databasePattern, tablePattern, columnPattern);
     ExecuteJob execute = new ExecuteJob(connect, job);
 
+    LOG.info("Executing query to fetch the column description for dbPattern: {}, tablePattern: {}, columnPattern: {}, for user: {}",
+      databasePattern, tablePattern, columnPattern, job.getUsername());
+    return getResultFromDB(execute);
+  }
+
+  private Optional<Result> getResultFromDB(ExecuteJob job) {
+    List<ColumnDescription> descriptions = null;
+    List<Row> rows = Lists.newArrayList();
     Inbox inbox = Inbox.create(system);
-    inbox.send(controller, execute);
+    inbox.send(controller, job);
     Object submitResult;
     try {
       submitResult = inbox.receive(Duration.create(2, TimeUnit.MINUTES));
     } catch (Throwable ex) {
-      String errorMessage = "Query timed out to fetch table description for user: " + config.getUsername();
+      String errorMessage = "Query timed out to fetch table description for user: " + job.getConnect().getUsername();
       LOG.error(errorMessage, ex);
       throw new ServiceFormattedException(errorMessage, ex);
+    }
+
+    if (submitResult instanceof NoResult) {
+      LOG.info("Query returned with no result.");
+      return Optional.absent();
+
     }
 
     if (submitResult instanceof ExecutionFailed) {
@@ -116,13 +178,16 @@ public class DDLDelegatorImpl implements DDLDelegator {
         try {
           receive = inbox.receive(Duration.create(1, TimeUnit.MINUTES));
         } catch (Throwable ex) {
-          String errorMessage = "Query timed out to fetch results for user: " + config.getUsername();
+          String errorMessage = "Query timed out to fetch results for user: " + job.getConnect().getUsername();
           LOG.error(errorMessage, ex);
           throw new ServiceFormattedException(errorMessage, ex);
         }
 
         if (receive instanceof Result) {
           Result result = (Result) receive;
+          if (descriptions == null) {
+            descriptions = result.getColumns();
+          }
           result.getRows();
           rows.addAll(result.getRows());
         }
@@ -139,84 +204,22 @@ public class DDLDelegatorImpl implements DDLDelegator {
       }
 
     }
-
-    for (Row row : rows) {
-      Object[] values = row.getRow();
-      String name = (String)values[3];
-      String type = (String)values[5];
-      int position = (Integer)values[16];
-      descriptions.add(new ColumnDescriptionShort(name, type, position));
-    }
-
-    return descriptions;
-  }
-
-  private List<Row> getRowsFromDB(ConnectionConfig config, String[] statements) {
-    List<Row> rows = Lists.newArrayList();
-    Connect connect = config.createConnectMessage();
-    HiveJob job = new SyncJob(config.getUsername(), statements, context);
-    ExecuteJob execute = new ExecuteJob(connect, job);
-
-    Inbox inbox = Inbox.create(system);
-    inbox.send(controller, execute);
-    Object submitResult;
-    try {
-      submitResult = inbox.receive(Duration.create(2, TimeUnit.MINUTES));
-    } catch (Throwable ex) {
-      String stmts = getJoinedStatements(statements);
-      String errorMessage = "Query timed out for user: " + config.getUsername() + ". Query: '" + stmts + "'";
-      LOG.error(errorMessage, ex);
-      throw new ServiceFormattedException(errorMessage, ex);
-    }
-    if (submitResult instanceof NoResult) {
-      LOG.info("Query returned with no result. Query: '" + getJoinedStatements(statements) + "'");
-      return rows;
-
-    } else if (submitResult instanceof ExecutionFailed) {
-      ExecutionFailed error = (ExecutionFailed) submitResult;
-      LOG.error("Failed to execute statements.{}. user: {}, Query: {}. Exception: {}",
-        error.getMessage(), config.getUsername(), getJoinedStatements(statements), error.getError());
-      throw new ServiceFormattedException(error.getMessage(), error.getError());
-
-    } else if (submitResult instanceof ResultSetHolder) {
-      ResultSetHolder holder = (ResultSetHolder) submitResult;
-      ActorRef iterator = holder.getIterator();
-      while (true) {
-        inbox.send(iterator, new Next());
-        Object receive;
-        try {
-          receive = inbox.receive(Duration.create(1, TimeUnit.MINUTES));
-        } catch (Throwable ex) {
-          String stmts = getJoinedStatements(statements);
-          String errorMessage = "Query timed out to fetch results for user: " + config.getUsername() + ". Query: '" + stmts + "'";
-          LOG.error(errorMessage, ex);
-          throw new ServiceFormattedException(errorMessage, ex);
-        }
-
-        if (receive instanceof Result) {
-          Result result = (Result) receive;
-          rows.addAll(result.getRows());
-        }
-
-        if (receive instanceof NoMoreItems) {
-          break;
-        }
-
-        if (receive instanceof FetchFailed) {
-          FetchFailed error = (FetchFailed) receive;
-          LOG.error("Failed to fetch results for statements.{}. user: {}, Query: {}. Exception: {}",
-            error.getMessage(), config.getUsername(), getJoinedStatements(statements), error.getError());
-          throw new ServiceFormattedException(error.getMessage(), error.getError());
-        }
-      }
-
-    }
-
-    return rows;
+    return Optional.of(new Result(rows, descriptions));
   }
 
   private String getJoinedStatements(String[] statements) {
     return Joiner.on("; ").skipNulls().join(statements);
+  }
+
+  private ImmutableList<String> getFirstColumnValues(List<Row> rows) {
+    return FluentIterable.from(rows)
+      .transform(new Function<Row, String>() {
+        @Override
+        public String apply(Row input) {
+          Object[] values = input.getRow();
+          return values.length > 0 ? (String) values[0] : NO_VALUE_MARKER;
+        }
+      }).toList();
   }
 
 }

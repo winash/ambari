@@ -24,6 +24,9 @@ import org.apache.ambari.view.hive.client.ColumnDescription;
 import org.apache.ambari.view.hive.client.ConnectionConfig;
 import org.apache.ambari.view.hive.client.DDLDelegator;
 import org.apache.ambari.view.hive.client.DDLDelegatorImpl;
+import org.apache.ambari.view.hive.client.PersistentCursor;
+import org.apache.ambari.view.hive.client.Row;
+import org.apache.ambari.view.hive.resources.jobs.ResultsPaginationController;
 import org.apache.ambari.view.hive.utils.BadRequestFormattedException;
 import org.apache.ambari.view.hive.utils.ServiceFormattedException;
 import org.apache.ambari.view.hive2.ConnectionSystem;
@@ -41,6 +44,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * Database access resource
@@ -53,20 +57,6 @@ public class HiveBrowserService {
 
   protected final static Logger LOG =
     LoggerFactory.getLogger(HiveBrowserService.class);
-
-  private static final long EXPIRING_TIME = 10 * 60 * 1000;  // 10 minutes
-  /*private static Map<String, Cursor> resultsCache;
-  private UserLocalConnection connectionLocal = new UserLocalConnection();
-
-  public static Map<String, Cursor> getResultsCache() {
-    if (resultsCache == null) {
-      PassiveExpiringMap<String, Cursor> resultsCacheExpiringMap =
-          new PassiveExpiringMap<String, Cursor>(EXPIRING_TIME);
-      resultsCache = Collections.synchronizedMap(resultsCacheExpiringMap);
-    }
-    return resultsCache;
-  }
-  */
 
   /**
    * Returns list of databases
@@ -109,19 +99,15 @@ public class HiveBrowserService {
     String curl = null;
     try {
       final String finalLike = like;
-      return null;
-      /*return ResultsPaginationController.getInstance(context)
-          .request("databases", searchId, false, fromBeginning, count, format,
-                  new Callable<Cursor>() {
-                    @Override
-                    public Cursor call() throws Exception {
-                      TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
-                      return connectionLocal.get(context).ddl().getDBListCursor(session, finalLike);
-                    }
-                  }).build();*/
-
-
-      //TODO: New implementation
+      final DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
+      return ResultsPaginationController.getInstance(context)
+          .request("databases", searchId, false, fromBeginning, count, format, requestedColumns,
+            new Callable<PersistentCursor<Row>>() {
+              @Override
+              public PersistentCursor<Row> call() throws Exception {
+                return (PersistentCursor<Row>) delegator.getDbListCursor(getHiveConnectionConfig(), finalLike);
+              }
+            }).build();
     } catch (WebApplicationException ex) {
       throw ex;
     } catch (IllegalArgumentException ex) {
@@ -176,20 +162,19 @@ public class HiveBrowserService {
     String curl = null;
     try {
       final String finalLike = like;
-      /*return ResultsPaginationController.getInstance(context)
-          .request(db + ":tables", searchId, false, fromBeginning, count, format,
-                  new Callable<Cursor>() {
-                    @Override
-                    public Cursor call() throws Exception {
-                      TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
-                      Cursor cursor = connectionLocal.get(context).ddl().getTableListCursor(session, db, finalLike);
-                      cursor.selectColumns(requestedColumns);
-                      return cursor;
-                    }
-                  }).build();*/
-      return null;
-
-      //TODO: New implementation
+      final DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
+      try {
+        return ResultsPaginationController.getInstance(context)
+          .request(db + ":tables:", searchId, false, fromBeginning, count, format, requestedColumns,
+            new Callable<PersistentCursor<Row>>() {
+              @Override
+              public PersistentCursor<Row> call() throws Exception {
+                return (PersistentCursor<Row>) delegator.getTableListCursor(getHiveConnectionConfig(), db, finalLike);
+              }
+            }).build();
+      } catch (Exception ex) {
+        throw new ServiceFormattedException(ex.getMessage(), ex);
+      }
 
     } catch (WebApplicationException ex) {
       throw ex;
@@ -216,10 +201,7 @@ public class HiveBrowserService {
     try {
       JSONObject response = new JSONObject();
       DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
-      List<ColumnDescription> descriptions = delegator.getTableDescription(getHiveConnectionConfig(), db, table, "%", false);
-      //TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
-      //List<ColumnDescription> columnDescriptions = connectionLocal.get(context).ddl()
-      //    .getTableDescription(session, db, table, like, extendedTableDescription);
+      List<ColumnDescription> descriptions = delegator.getTableDescription(getHiveConnectionConfig(), db, table, "%", extendedTableDescription);
       response.put("columns", descriptions);
       response.put("database", db);
       response.put("table", table);
@@ -244,36 +226,30 @@ public class HiveBrowserService {
   @Produces(MediaType.APPLICATION_JSON)
   public Response describeTablePaginated(@PathParam("db") final String db,
                                          @PathParam("table") final String table,
-                                         @QueryParam("like") final String like,
+                                         @QueryParam("like") String like,
                                          @QueryParam("first") String fromBeginning,
                                          @QueryParam("searchId") String searchId,
                                          @QueryParam("count") Integer count,
                                          @QueryParam("format") String format,
                                          @QueryParam("columns") final String requestedColumns) {
-    String curl = null;
+    if (like == null)
+      like = ".*";
+    else
+      like = ".*" + like + ".*";
+    final String finalLike = like;
+
+    final DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
     try {
-      /*return ResultsPaginationController.getInstance(context)
-          .request(db + ":tables:" + table + ":columns", searchId, false, fromBeginning, count, format,
-              new Callable<Cursor>() {
-                @Override
-                public Cursor call() throws Exception {
-                  TSessionHandle session = connectionLocal.get(context).getOrCreateSessionByTag("DDL");
-                  Cursor cursor = connectionLocal.get(context).ddl().
-                      getTableDescriptionCursor(session, db, table, like);
-                  cursor.selectColumns(requestedColumns);
-                  return cursor;
-                }
-              }).build();*/
-      return null;
-
-      //TODO: New implementation
-
-    } catch (WebApplicationException ex) {
-      throw ex;
-    } catch (IllegalArgumentException ex) {
-      throw new BadRequestFormattedException(ex.getMessage(), ex);
+      return ResultsPaginationController.getInstance(context)
+        .request(db + ":tables:" + table + ":columns", searchId, false, fromBeginning, count, format, requestedColumns,
+          new Callable<PersistentCursor<Row>>() {
+            @Override
+            public PersistentCursor<Row> call() throws Exception {
+              return (PersistentCursor<Row>) delegator.getTableDescriptionCursor(getHiveConnectionConfig(), db, table, finalLike, false);
+            }
+          }).build();
     } catch (Exception ex) {
-      throw new ServiceFormattedException(ex.getMessage(), ex, curl);
+      throw new ServiceFormattedException(ex.getMessage(), ex);
     }
   }
 

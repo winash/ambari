@@ -4,6 +4,7 @@ import akka.actor.ActorRef;
 import com.google.common.collect.Lists;
 import org.apache.ambari.view.hive.client.ColumnDescription;
 import org.apache.ambari.view.hive.client.ColumnDescriptionExtended;
+import org.apache.ambari.view.hive.client.ColumnDescriptionShort;
 import org.apache.ambari.view.hive.client.Row;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.job.FetchFailed;
@@ -103,7 +104,7 @@ public class ResultSetIterator extends HiveActor {
     for(int i = 1; i <= columnCount; i++) {
       String columnName = metaData.getColumnName(i);
       String typeName = metaData.getColumnTypeName(i);
-      ColumnDescription description = new ColumnDescriptionExtended(columnName, typeName, "", false, false, false, i);
+      ColumnDescription description = new ColumnDescriptionShort(columnName, typeName, i);
       columnDescriptions.add(description);
     }
   }
