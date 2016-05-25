@@ -1,4 +1,4 @@
-package org.apache.ambari.view.hivenext.client;
+package org.apache.ambari.view.hive.client;
 
 
 import akka.actor.ActorRef;
@@ -7,7 +7,7 @@ import akka.actor.Inbox;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import org.apache.ambari.view.ViewContext;
-import org.apache.ambari.view.hivenext.utils.ServiceFormattedException;
+import org.apache.ambari.view.hive.utils.ServiceFormattedException;
 import org.apache.ambari.view.hive2.actor.ResultSetIterator;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
