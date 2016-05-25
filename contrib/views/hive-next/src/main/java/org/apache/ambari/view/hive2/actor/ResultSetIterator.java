@@ -30,7 +30,7 @@ public class ResultSetIterator extends HiveActor {
   private final int batchSize;
 
   private static ResultSetMetaData metaData;
-  private Row colNames;
+  private List<ColumnDescription> columnDescriptions;
   private NumberFormat nf = new DecimalFormat();
   private int columnCount;
 
@@ -78,7 +78,7 @@ public class ResultSetIterator extends HiveActor {
         sender().tell(new NoMoreItems(), self());
         // TODO: Tell the parent to clean up
       } else {
-        sender().tell(new Result(rows, colNames), self());
+        sender().tell(new Result(rows, columnDescriptions), self());
       }
 
     } catch (SQLException ex) {
@@ -99,13 +99,12 @@ public class ResultSetIterator extends HiveActor {
     metaDataFetched = true;
     metaData = resultSet.getMetaData();
     columnCount = metaData.getColumnCount();
-    List<ColumnDescription> columnDescriptions = Lists.newArrayList();
+    columnDescriptions = Lists.newArrayList();
     for(int i = 1; i <= columnCount; i++) {
       String columnName = metaData.getColumnName(i);
       String typeName = metaData.getColumnTypeName(i);
       ColumnDescription description = new ColumnDescriptionExtended(columnName, typeName, "", false, false, false, i);
       columnDescriptions.add(description);
     }
-    colNames = new Row(columnDescriptions.toArray());
   }
 }
