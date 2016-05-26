@@ -83,14 +83,14 @@ public class ConnectionFactory {
   }
 
   private static String getFromClusterZookeeperConfig(ViewContext context) {
-    String quorum = context.getCluster().getConfigurationValue(HIVE_INTERACTIVE_SITE, ZK_HIVE_QUORUM);
+    String quorum = context.getCluster().getConfigurationValue(HIVE_SITE, ZK_HIVE_QUORUM);
     if (quorum == null) {
-      quorum = context.getCluster().getConfigurationValue(HIVE_SITE, ZK_HIVE_QUORUM);
+       quorum = context.getCluster().getConfigurationValue(HIVE_INTERACTIVE_SITE, ZK_HIVE_QUORUM);
     }
 
-    String namespace = context.getCluster().getConfigurationValue(HIVE_INTERACTIVE_SITE, ZK_HIVE_NAMESPACE_KEY);
+    String namespace = context.getCluster().getConfigurationValue(HIVE_SITE, ZK_HIVE_NAMESPACE_KEY);
     if(namespace == null) {
-      namespace = context.getCluster().getConfigurationValue(HIVE_SITE, ZK_HIVE_NAMESPACE_KEY);
+       namespace = context.getCluster().getConfigurationValue(HIVE_INTERACTIVE_SITE, ZK_HIVE_NAMESPACE_KEY);
     }
     return String.format("jdbc:hive2://%s/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=%s", quorum, namespace);
   }

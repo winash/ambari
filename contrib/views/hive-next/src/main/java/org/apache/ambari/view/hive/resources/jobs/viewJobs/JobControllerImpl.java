@@ -45,6 +45,7 @@ import org.apache.ambari.view.hive.utils.FilePaginator;
 import org.apache.ambari.view.hive.utils.HiveClientFormattedException;
 import org.apache.ambari.view.hive.utils.MisconfigurationFormattedException;
 import org.apache.ambari.view.hive.utils.ServiceFormattedException;
+import org.apache.ambari.view.hive2.ConnectionFactory;
 import org.apache.ambari.view.hive2.ConnectionSystem;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.JobSubmitted;
@@ -400,16 +401,7 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
 
 
     private ConnectionConfig getHiveConnectionConfig() {
-        Map<String, String> map = Maps.newHashMap();
-        map.put("serviceDiscoveryMode", "zookeeper");
-        map.put("zooKeeperNamespace", "hiveserver2");
-        return new ConnectionConfig.ConnectionConfigBuilder()
-                .withUsername("admin")
-                .withPassword("admin")
-                .withHost("c6401.ambari.apache.org")
-                .withPort(2181)
-                .withAuthParams(map)
-                .build();
+        return ConnectionFactory.create(context);
     }
 
     private String getRelatedSavedQueryFile() {
