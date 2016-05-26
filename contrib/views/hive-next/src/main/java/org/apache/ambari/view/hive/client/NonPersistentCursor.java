@@ -67,7 +67,7 @@ public class NonPersistentCursor implements Cursor<Row, ColumnDescription> {
 
   @Override
   public Iterator<Row> iterator() {
-    return null;
+    return rows.iterator();
   }
 
   @Override

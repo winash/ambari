@@ -36,7 +36,7 @@ public abstract class JdbcConnector extends HiveActor {
   /**
    * Interval for maximum inactivity allowed
    */
-  private final static long MAX_INACTIVITY_INTERVAL = 1 * 60 * 1000;
+  private final static long MAX_INACTIVITY_INTERVAL = 3 * 60 * 1000;
 
   /**
    * Interval for maximum inactivity allowed before termination

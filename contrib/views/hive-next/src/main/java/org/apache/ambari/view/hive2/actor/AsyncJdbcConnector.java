@@ -13,14 +13,12 @@ import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.AssignResultSet;
 import org.apache.ambari.view.hive2.actor.message.AssignStatement;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
-import org.apache.ambari.view.hive2.actor.message.HiveJob;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.ResultReady;
 import org.apache.ambari.view.hive2.actor.message.job.AsyncExecutionFailed;
+import org.apache.ambari.view.hive2.actor.message.job.ResultSetHolder;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.InactivityCheck;
 import org.apache.ambari.view.hive2.actor.message.StartLogAggregation;
-import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
-import org.apache.ambari.view.hive2.internal.AsyncExecutionFailure;
 import org.apache.ambari.view.hive2.internal.Either;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveConnection;
@@ -74,9 +72,6 @@ public class AsyncJdbcConnector extends JdbcConnector {
       Optional<HiveStatement> currentStatement = connectionDelegate.getCurrentStatement();
       // There should be a result set, which either has a result set, or an empty value
       // for operations which do not return anything
-      ActorRef resultHolder = getContext().actorOf(
-        Props.create(AsyncResultHolder.class, parent, message),
-        message.getUsername() + ":" + message.getJobId() + "-resultsHolder");
 
       ActorRef logAggregator = getContext().actorOf(
         Props.create(LogAggregator.class, system, hdfsApi, currentStatement.get(), message.getLogFile()), message.getUsername() + ":" + message.getJobId() + "-logAggregator"
@@ -88,13 +83,19 @@ public class AsyncJdbcConnector extends JdbcConnector {
       if (resultSetOptional.isPresent()) {
         // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
         // tell the result holder to assign the result set for further operations
-        resultHolder.tell(new AssignResultSet(resultSetOptional), sender());
+        ActorRef resultSetActor = getContext().actorOf(Props.create(ResultSetIterator.class, self(), resultSetOptional.get(),storage));
+        sender().tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>left(resultSetActor)), self());
+        parent.tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>left(resultSetActor)), self());
 
         // Start a actor to query ATS
       } else {
         // Case when this is an Update/query with no results
         // Wait for operation to complete and add results;
-        resultHolder.tell(new AssignStatement(currentStatement.get()), sender());
+        ActorRef asyncQueryExecutor = getContext().actorOf(
+                Props.create(AsyncQueryExecutor.class,currentStatement.get()),
+                message.getUsername() + ":" + message.getJobId() + "-asyncQueryExecutor");
+        sender().tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>right(asyncQueryExecutor)), self());
+        parent.tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>right(asyncQueryExecutor)), self());
 
       }
       // Start a actor to query log

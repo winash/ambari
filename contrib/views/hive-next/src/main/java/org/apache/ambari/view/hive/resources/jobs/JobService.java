@@ -18,10 +18,17 @@
 
 package org.apache.ambari.view.hive.resources.jobs;
 
+import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewResourceHandler;
 import org.apache.ambari.view.hive.BaseService;
+import org.apache.ambari.view.hive.client.AsyncJobRunner;
+import org.apache.ambari.view.hive.client.AsyncJobRunnerImpl;
+import org.apache.ambari.view.hive.client.ColumnDescription;
+import org.apache.ambari.view.hive.client.Cursor;
 import org.apache.ambari.view.hive.client.HiveAuthCredentials;
 import org.apache.ambari.view.hive.client.HiveClientException;
+import org.apache.ambari.view.hive.client.NonPersistentCursor;
+import org.apache.ambari.view.hive.client.Row;
 import org.apache.ambari.view.hive.client.UserLocalHiveAuthCredentials;
 import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
 import org.apache.ambari.view.hive.resources.jobs.atsJobs.IATSParser;
@@ -32,6 +39,7 @@ import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobResourceManager;
 import org.apache.ambari.view.hive.utils.NotFoundFormattedException;
 import org.apache.ambari.view.hive.utils.ServiceFormattedException;
 import org.apache.ambari.view.hive.utils.SharedObjectsFactory;
+import org.apache.ambari.view.hive2.ConnectionSystem;
 import org.apache.commons.beanutils.PropertyUtils;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
@@ -55,6 +63,7 @@ import javax.ws.rs.core.UriInfo;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 /**
  * Servlet for queries
@@ -313,6 +322,27 @@ public class JobService extends BaseService {
                              @QueryParam("columns") final String requestedColumns) {
     try {
       final JobController jobController = getResourceManager().readController(jobId);
+
+      String username = context.getUsername();
+
+      ConnectionSystem system = ConnectionSystem.getInstance();
+      AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem(),context);
+
+      final Optional<NonPersistentCursor> cursor = asyncJobRunner.getCursor(jobId, username);
+      if(!cursor.isPresent()){
+        return ResultsPaginationController.emptyResponse().build();
+      }
+
+      return ResultsPaginationController.getInstance(context)
+              .request(jobId, searchId, true, fromBeginning, count, format,requestedColumns,
+                      new Callable<Cursor< Row, ColumnDescription >>() {
+                        @Override
+                        public Cursor call() throws Exception {
+                          return cursor.get();
+                        }
+                      }).build();
+
+
       /*LOG.info("jobController.getStatus().status : " + jobController.getStatus().status + " for job : " + jobController.getJob().getId());
       if(jobController.getStatus().status.equals(ExecuteJob.JOB_STATE_INITIALIZED)
          || jobController.getStatus().status.equals(ExecuteJob.JOB_STATE_PENDING)
@@ -321,22 +351,6 @@ public class JobService extends BaseService {
 
          return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Retry-After","1").build();
       }*/
-      if (!jobController.hasResults()) {
-        return ResultsPaginationController.emptyResponse().build();
-      }
-
-      /*return ResultsPaginationController.getInstance(context)
-           .request(jobId, searchId, true, fromBeginning, count, format,
-               new Callable<Cursor>() {
-                 @Override
-                 public Cursor call() throws Exception {
-                   Cursor cursor = jobController.getResults();
-                   cursor.selectColumns(requestedColumns);
-                   return cursor;
-                 }
-               }).build();*/
-      return null;
-
       //TODO: New implementation
     } catch (WebApplicationException ex) {
       throw ex;

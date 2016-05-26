@@ -88,6 +88,18 @@ public class OperationController extends HiveActor {
       }
     }
 
+    if (message instanceof ResultReady) {
+      updateResultContainer((ResultReady) message);
+    }
+
+    if (message instanceof GetResultHolder) {
+      getResultHolder((GetResultHolder) message);
+    }
+
+    if (message instanceof FetchResult) {
+      fetchResultActorRef((FetchResult) message);
+    }
+
     if (message instanceof FreeConnector) {
       System.out.println(getSender());
       System.out.println(message);
@@ -99,6 +111,34 @@ public class OperationController extends HiveActor {
       System.out.println(message);
       destroyConnector((DestroyConnector) message);
     }
+  }
+
+  private void getResultHolder(GetResultHolder message) {
+    String userName = message.getUserName();
+    String jobId = message.getJobId();
+    if(busyConnections.containsKey(userName) && busyConnections.get(userName).containsKey(jobId))
+      sender().tell(busyConnections.get(userName).get(jobId).result, self());
+    else {
+      Either<ActorRef, AsyncExecutionFailed> right = Either.right(new AsyncExecutionFailed(message.getJobId(), "Could not find the job, maybe the pool expired"));
+      sender().tell(right, self());
+    }
+  }
+
+  private void updateResultContainer(ResultReady message) {
+    // update the result
+    String jobId = message.getJobId();
+    String username = message.getUsername();
+    busyConnections.get(username).get(jobId).result = message.getResult();
+  }
+
+  private void fetchResultActorRef(FetchResult message) {
+    //Gets an Either actorRef,result implementation
+    // and send back to the caller
+    String username = message.getUsername();
+    String jobId = message.getJobId();
+    Either<ActorRef, ActorRef> result = busyConnections.get(username).get(jobId).result;
+    sender().tell(result,self());
+
   }
 
   private void sendJob(Connect connect, AsyncJob job) {
