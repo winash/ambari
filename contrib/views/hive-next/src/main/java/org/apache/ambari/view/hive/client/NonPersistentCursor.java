@@ -110,7 +110,6 @@ public class NonPersistentCursor implements Cursor<Row, ColumnDescription> {
       if (descriptions.isEmpty()) {
         descriptions.addAll(result.getColumns());
       }
-      result.getRows();
       rows.addAll(result.getRows());
     }
 
