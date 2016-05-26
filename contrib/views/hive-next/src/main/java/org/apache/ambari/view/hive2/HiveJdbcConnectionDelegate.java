@@ -17,6 +17,7 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
 
   private ResultSet currentResultSet;
   private HiveStatement currentStatement;
+  private String atsGuid;
 
   @Override
   public Optional<ResultSet> execute(HiveConnection connection, DDLJob job) throws SQLException {
@@ -33,6 +34,7 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
 
       HiveStatement hiveStatement = (HiveStatement) statement;
       boolean result = hiveStatement.executeAsync(job.getAsyncStatement());
+      atsGuid = hiveStatement.getYarnATSGuid();
       if (result) {
         // query has a result set
         ResultSet resultSet = hiveStatement.getResultSet();
@@ -77,6 +79,7 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
       throw e;
     }
   }
+
 
   @Override
   public Optional<ResultSet> getColumnMetadata(HiveConnection connection, GetColumnMetadataJob job) throws SQLException {

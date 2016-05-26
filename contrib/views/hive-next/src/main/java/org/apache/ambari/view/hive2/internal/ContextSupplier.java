@@ -14,4 +14,6 @@ public interface ContextSupplier<T> {
    * @return instance of appropriateType
    */
   T get(ViewContext context);
+
+
 }

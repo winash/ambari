@@ -268,12 +268,6 @@
             <class>org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl</class>
             <id-property>id</id-property>
         </entity>
-        <!--
-        <entity>
-            <class>org.apache.ambari.view.hive.resources.jobs.StoredOperationHandle</class>
-            <id-property>id</id-property>
-        </entity>
-        -->
         <entity>
             <class>org.apache.ambari.view.hive.resources.savedQueries.SavedQuery</class>
             <id-property>id</id-property>

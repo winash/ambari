@@ -15,9 +15,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Created by dbhowmick on 5/23/16.
- */
 public class ExceptionWriter extends UntypedActor {
 
   protected final Logger LOG = LoggerFactory.getLogger(getClass());

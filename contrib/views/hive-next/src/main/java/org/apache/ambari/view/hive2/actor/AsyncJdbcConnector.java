@@ -6,15 +6,22 @@ import akka.actor.Props;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.persistence.Storage;
+import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
+import org.apache.ambari.view.hive.resources.jobs.viewJobs.Job;
+import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.AssignResultSet;
 import org.apache.ambari.view.hive2.actor.message.AssignStatement;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
+import org.apache.ambari.view.hive2.actor.message.HiveJob;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
+import org.apache.ambari.view.hive2.actor.message.ResultReady;
 import org.apache.ambari.view.hive2.actor.message.job.AsyncExecutionFailed;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.InactivityCheck;
 import org.apache.ambari.view.hive2.actor.message.StartLogAggregation;
 import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
+import org.apache.ambari.view.hive2.internal.AsyncExecutionFailure;
+import org.apache.ambari.view.hive2.internal.Either;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveConnection;
 import org.apache.hive.jdbc.HiveStatement;
@@ -51,6 +58,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
 
   private void execute(AsyncJob message) {
     this.jobId = message.getJobId();
+    updateJobStatus(jobId,Job.JOB_STATE_INITIALIZED);
     String errorMessage = "Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive";
     if (connectable == null) {
       exceptionWriter.tell(new AsyncExecutionFailed(message.getJobId(), errorMessage), ActorRef.noSender());
@@ -62,7 +70,6 @@ public class AsyncJdbcConnector extends JdbcConnector {
     }
 
     try {
-
       Optional<ResultSet> resultSetOptional = connectionDelegate.execute(connectionOptional.get(), message);
       Optional<HiveStatement> currentStatement = connectionDelegate.getCurrentStatement();
       // There should be a result set, which either has a result set, or an empty value
@@ -75,36 +82,49 @@ public class AsyncJdbcConnector extends JdbcConnector {
         Props.create(LogAggregator.class, system, hdfsApi, currentStatement.get(), message.getLogFile()), message.getUsername() + ":" + message.getJobId() + "-logAggregator"
       );
 
+      updateGuidInJob(jobId, currentStatement.get());
+      updateJobStatus(jobId,Job.JOB_STATE_RUNNING);
+
       if (resultSetOptional.isPresent()) {
         // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
         // tell the result holder to assign the result set for further operations
-        resultHolder.tell(new AssignResultSet(resultSetOptional), self());
+        resultHolder.tell(new AssignResultSet(resultSetOptional), sender());
 
         // Start a actor to query ATS
       } else {
         // Case when this is an Update/query with no results
         // Wait for operation to complete and add results;
-        resultHolder.tell(new AssignStatement(currentStatement.get()), self());
+        resultHolder.tell(new AssignStatement(currentStatement.get()), sender());
 
       }
       // Start a actor to query log
       logAggregator.tell(new StartLogAggregation(), self());
-      Optional<HiveStatement> statementOptional = currentStatement;
 
-      if (statementOptional.isPresent()) {
-//        updateGuidInJob(jobId, statementOptional.get());
-        // Wait for the result in the Holder and update HDFS with the error log if any
-
-      }
 
     } catch (SQLException e) {
-      exceptionWriter.tell(new AsyncExecutionFailed(message.getJobId(),
-        e.getMessage(), e), ActorRef.noSender());
+      // update the error on the log
+      AsyncExecutionFailed failure = new AsyncExecutionFailed(message.getJobId(),
+              e.getMessage(), e);
+      exceptionWriter.tell(failure, ActorRef.noSender());
+      // Update the operation controller to write an error on the right side
+      LOG.error("Caught SQL excpetion for job-"+message,e);
+
     }
 
     // Start Inactivity timer to close the statement
     this.inactivityScheduler = system.scheduler().schedule(
       Duration.Zero(), Duration.create(15 * 1000, TimeUnit.MILLISECONDS),
       this.self(), new InactivityCheck(), system.dispatcher(), null);
+  }
+
+  private void updateJobStatus(String jobId, String jobState) {
+    JobImpl job = null;
+    try {
+      job = storage.load(JobImpl.class, jobId);
+    } catch (ItemNotFound itemNotFound) {
+      itemNotFound.printStackTrace();
+    }
+    job.setStatus(jobState);
+    storage.store(JobImpl.class, job);
   }
 }

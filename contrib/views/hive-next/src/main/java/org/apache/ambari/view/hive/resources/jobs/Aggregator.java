@@ -122,12 +122,14 @@ public class Aggregator {
   }
 
   public Job readATSJob(Job viewJob) throws ItemNotFound {
-    //TOperationHandle operationHandle = operationHandleResourceManager.getHandleForJob(viewJob).toTOperationHandle();
 
-    String hexGuid = Hex.encodeHexString(null /*operationHandle.getOperationId().getGuid()*/);
-    //TODO: New implementation
+    if(viewJob.getStatus().equals(Job.JOB_STATE_INITIALIZED) || viewJob.getStatus().equals(Job.JOB_STATE_UNKNOWN))
+      return viewJob;
 
-    HiveQueryId atsHiveQuery = ats.getHiveQueryIdByOperationId(hexStringToUrlSafeBase64(hexGuid));
+    String hexGuid = viewJob.getGuid();
+
+
+    HiveQueryId atsHiveQuery = ats.getHiveQueryIdByOperationId(hexGuid);
 
     TezDagId atsTezDag = getTezDagFromHiveQueryId(atsHiveQuery);
 

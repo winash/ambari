@@ -451,6 +451,8 @@ public class JobService extends BaseService {
     try {
       Map jobInfo = PropertyUtils.describe(request.job);
       Job job = new JobImpl(jobInfo);
+
+
       getResourceManager().create(job);
 
       JobController createdJobController = getResourceManager().readController(job.getId());

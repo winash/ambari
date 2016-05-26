@@ -8,8 +8,10 @@ public class AssignResultSet {
 
     private Optional<ResultSet> resultSet;
 
+
     public AssignResultSet(Optional<ResultSet> resultSet) {
         this.resultSet = resultSet;
+
     }
 
 
@@ -17,10 +19,12 @@ public class AssignResultSet {
         return resultSet.orNull();
     }
 
+
     @Override
     public String toString() {
         return "ExtractResultSet{" +
                 "resultSet=" + resultSet +
                 '}';
     }
+
 }

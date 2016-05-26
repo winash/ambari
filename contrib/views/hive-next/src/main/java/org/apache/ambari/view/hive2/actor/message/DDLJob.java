@@ -12,11 +12,22 @@ import java.util.Collections;
  */
 public class DDLJob extends HiveJob {
 
-  private final String[] statements;
+  public static final String SEMICOLON = ";";
+  private String[] statements;
 
   public DDLJob(Type type, String[] statements, String username, ViewContext viewContext) {
     super(type, username, viewContext);
-    this.statements = statements;
+    this.statements = new String[statements.length];
+    for (int i = 0; i < statements.length; i++) {
+      this.statements[i] = clean(statements[i]);
+
+    }
+
+  }
+
+  private String clean(String statement) {
+    String replaced = statement.replace(SEMICOLON, "");
+    return replaced.trim();
   }
 
   public Collection<String> getStatements() {

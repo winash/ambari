@@ -1,8 +1,8 @@
 package org.apache.ambari.view.hive2.actor.message;
 
 import akka.actor.ActorRef;
+import org.apache.ambari.view.hive2.actor.message.job.AsyncExecutionFailed;
 import org.apache.ambari.view.hive2.internal.Either;
-import org.apache.ambari.view.hive2.internal.AsyncExecutionFailure;
 
 /**
  *
@@ -10,19 +10,19 @@ import org.apache.ambari.view.hive2.internal.AsyncExecutionFailure;
  *
  */
 public class ResultReady extends FetchResult {
-    private Either<ActorRef, AsyncExecutionFailure> result;
+    private Either<ActorRef, ActorRef> result;
 
 
-    public ResultReady(String jobId, String username, Either<ActorRef, AsyncExecutionFailure> result) {
+    public ResultReady(String jobId, String username, Either<ActorRef, ActorRef> result) {
         super(jobId, username);
         this.result = result;
     }
 
-    public Either<ActorRef, AsyncExecutionFailure> getResult() {
+    public Either<ActorRef, ActorRef> getResult() {
         return result;
     }
 
-    public void setResult(Either<ActorRef, AsyncExecutionFailure> result) {
+    public void setResult(Either<ActorRef, ActorRef> result) {
         this.result = result;
     }
 }

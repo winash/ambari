@@ -6,9 +6,6 @@ import org.apache.ambari.view.hive2.HiveJdbcConnectionDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Created by dbhowmick on 5/20/16.
- */
 public class ConnectionSupplier implements ContextSupplier<ConnectionDelegate> {
 
   protected final Logger LOG =

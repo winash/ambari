@@ -141,7 +141,7 @@ public abstract class JdbcConnector extends HiveActor {
 
   }
 
-  private void updateGuidInJob(String jobId, HiveStatement statement) {
+  protected void updateGuidInJob(String jobId, HiveStatement statement) {
     String yarnAtsGuid = statement.getYarnATSGuid();
     try {
       JobImpl job = storage.load(JobImpl.class, jobId);
@@ -150,6 +150,8 @@ public abstract class JdbcConnector extends HiveActor {
     } catch (ItemNotFound itemNotFound) {
       // Cannot do anything if the job is not present
     }
+
+
 
   }
 

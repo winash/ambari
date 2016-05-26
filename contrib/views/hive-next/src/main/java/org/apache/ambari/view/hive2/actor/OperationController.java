@@ -4,26 +4,24 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import com.google.common.base.Optional;
-import com.google.common.base.Supplier;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.persistence.Storage;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
-import org.apache.ambari.view.hive2.HiveJdbcConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.Connect;
-import org.apache.ambari.view.hive2.actor.message.lifecycle.DestroyConnector;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
 import org.apache.ambari.view.hive2.actor.message.FetchResult;
-import org.apache.ambari.view.hive2.actor.message.lifecycle.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.HiveJob;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.JobRejected;
 import org.apache.ambari.view.hive2.actor.message.JobSubmitted;
 import org.apache.ambari.view.hive2.actor.message.ResultReady;
 import org.apache.ambari.view.hive2.actor.message.SyncJob;
+import org.apache.ambari.view.hive2.actor.message.job.AsyncExecutionFailed;
+import org.apache.ambari.view.hive2.actor.message.lifecycle.DestroyConnector;
+import org.apache.ambari.view.hive2.actor.message.lifecycle.FreeConnector;
 import org.apache.ambari.view.hive2.internal.ContextSupplier;
 import org.apache.ambari.view.hive2.internal.Either;
-import org.apache.ambari.view.hive2.internal.AsyncExecutionFailure;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.ambari.view.utils.hdfs.HdfsApiException;
 import org.apache.ambari.view.utils.hdfs.HdfsUtil;
@@ -90,19 +88,6 @@ public class OperationController extends HiveActor {
       }
     }
 
-    if (message instanceof ResultReady) {
-      updateResultContainer((ResultReady) message);
-    }
-
-    if (message instanceof GetResultHolder) {
-      getResultHolder((GetResultHolder) message);
-    }
-
-    if (message instanceof FetchResult) {
-      fetchResultActorRef((FetchResult) message);
-
-    }
-
     if (message instanceof FreeConnector) {
       System.out.println(getSender());
       System.out.println(message);
@@ -114,27 +99,6 @@ public class OperationController extends HiveActor {
       System.out.println(message);
       destroyConnector((DestroyConnector) message);
     }
-  }
-
-  private void getResultHolder(GetResultHolder message) {
-    sender().tell(busyConnections.get(message.getUserName()).get(message.getJobId()).result, self());
-  }
-
-  private void updateResultContainer(ResultReady message) {
-    // update the result
-    String jobId = message.getJobId();
-    String username = message.getUsername();
-    busyConnections.get(username).get(jobId).result = message.getResult();
-  }
-
-  private void fetchResultActorRef(FetchResult message) {
-    //Gets an Either actorRef,result implementation
-    // and send back to the caller
-    String username = message.getUsername();
-    String jobId = message.getJobId();
-    Either<ActorRef, AsyncExecutionFailure> result = busyConnections.get(username).get(jobId).result;
-    sender().tell(result,self());
-
   }
 
   private void sendJob(Connect connect, AsyncJob job) {
@@ -174,9 +138,8 @@ public class OperationController extends HiveActor {
 
     // set up the connect with ExecuteJob id for terminations
     subActor.tell(connect, self());
-    subActor.tell(job, self());
+    subActor.tell(job, sender());
 
-    sender().tell(new JobSubmitted(username, jobId), ActorRef.noSender());
   }
 
   private ActorRef getActorRefFromPool(String username, ActorRef subActor) {
@@ -298,7 +261,7 @@ public class OperationController extends HiveActor {
 
     ActorRef actorRef;
 
-    Either<ActorRef,AsyncExecutionFailure> result = Either.none();
+    Either<ActorRef, ActorRef> result = Either.none();
 
     public ActorRefResultContainer(ActorRef actorRef) {
       this.actorRef = actorRef;

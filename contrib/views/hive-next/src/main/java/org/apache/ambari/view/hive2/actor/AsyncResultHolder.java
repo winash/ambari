@@ -7,11 +7,13 @@ import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.ResultReady;
+import org.apache.ambari.view.hive2.actor.message.job.AsyncExecutionFailed;
+import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
 import org.apache.ambari.view.hive2.actor.message.job.FetchFailed;
 import org.apache.ambari.view.hive2.actor.message.job.Next;
+import org.apache.ambari.view.hive2.internal.AsyncExecutionFailure;
 import org.apache.ambari.view.hive2.internal.AsyncExecutionSuccess;
 import org.apache.ambari.view.hive2.internal.Either;
-import org.apache.ambari.view.hive2.internal.AsyncExecutionFailure;
 import org.apache.ambari.view.hive2.internal.HiveResult;
 
 import java.sql.ResultSet;
@@ -22,18 +24,13 @@ public class AsyncResultHolder extends HiveActor {
 
 
     /**
-     * The top level parent
-     */
-    private final ActorRef operationController;
-    /**
      * ExecuteJob for which this holder is assigned
      */
     private final AsyncJob executeJob;
     private ResultSet resultSet;
     private Statement statement;
 
-    public AsyncResultHolder(ActorRef operationController, AsyncJob executeJob) {
-        this.operationController = operationController;
+    public AsyncResultHolder(AsyncJob executeJob) {
         this.executeJob = executeJob;
     }
 
@@ -61,9 +58,9 @@ public class AsyncResultHolder extends HiveActor {
 
     private void assignStatement(AssignStatement message) {
         statement = message.getStatement();
-        operationController.tell(new ResultReady(executeJob.getJobId(),
+        sender().tell(new ResultReady(executeJob.getJobId(),
                 executeJob.getUsername(),
-                Either.<ActorRef, AsyncExecutionFailure>left(self())), self());
+                Either.<ActorRef, ActorRef>right(self())), self());
     }
 
     private void parseResultSet() {
@@ -80,7 +77,7 @@ public class AsyncResultHolder extends HiveActor {
             statement.getUpdateCount();
             sender().tell(new AsyncExecutionSuccess(),self());
         } catch (SQLException e) {
-            sender().tell(new AsyncExecutionFailure(),self());
+            sender().tell(new ExecutionFailed("Cannot execute query",e),self());
         }
 
 
@@ -107,11 +104,12 @@ public class AsyncResultHolder extends HiveActor {
      * @see Next
      */
     private void assignResultSet(Object extractMessage) {
+
         AssignResultSet message = (AssignResultSet) extractMessage;
         this.resultSet = message.getResultSet();
-        operationController.tell(new ResultReady(executeJob.getJobId(),
+        sender().tell(new ResultReady(executeJob.getJobId(),
                 executeJob.getUsername(),
-                Either.<ActorRef, AsyncExecutionFailure>left(self())), self());
+                Either.<ActorRef, ActorRef>left(self())), self());
 
     }
 

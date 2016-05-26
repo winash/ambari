@@ -18,7 +18,13 @@
 
 package org.apache.ambari.view.hive.resources.jobs.viewJobs;
 
+import com.beust.jcommander.internal.Maps;
+import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive.client.AsyncJobRunner;
+import org.apache.ambari.view.hive.client.AsyncJobRunnerImpl;
+import org.apache.ambari.view.hive.client.ConnectionConfig;
+import org.apache.ambari.view.hive.client.DDLDelegatorImpl;
 import org.apache.ambari.view.hive.client.HiveClientException;
 import org.apache.ambari.view.hive.client.HiveClientRuntimeException;
 import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
@@ -34,6 +40,11 @@ import org.apache.ambari.view.hive.utils.FilePaginator;
 import org.apache.ambari.view.hive.utils.HiveClientFormattedException;
 import org.apache.ambari.view.hive.utils.MisconfigurationFormattedException;
 import org.apache.ambari.view.hive.utils.ServiceFormattedException;
+import org.apache.ambari.view.hive2.ConnectionSystem;
+import org.apache.ambari.view.hive2.actor.message.AsyncJob;
+import org.apache.ambari.view.hive2.actor.message.JobSubmitted;
+import org.apache.ambari.view.hive2.actor.message.job.AsyncExecutionFailed;
+import org.apache.ambari.view.hive2.internal.Either;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.ambari.view.utils.hdfs.HdfsApiException;
 import org.apache.ambari.view.utils.hdfs.HdfsUtil;
@@ -44,6 +55,7 @@ import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Map;
 
 public class JobControllerImpl implements JobController, ModifyNotificationDelegate {
   private final static Logger LOG =
@@ -109,14 +121,25 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
 
   @Override
   public void submit() {
-    setupHiveBeforeQueryExecute();
-
+    String jobDatabase = getJobDatabase();
     String query = getQueryForJob();
-    //OperationHandleController handleController = hiveConnection.executeQuery(getSession(), query);
+    ConnectionSystem system = ConnectionSystem.getInstance();
+    AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem(),context);
+    // create async Job
+    //
+    AsyncJob asyncJob = new AsyncJob(job.getId(), context.getUsername(), getStatements(jobDatabase, query), job.getLogFile(), context);
+    Either<JobSubmitted, AsyncExecutionFailed> submitJob = asyncJobRunner.submitJob(getHiveConnectionConfig(), asyncJob);
+    if(submitJob.isLeft()){
+      LOG.info("The job "+ asyncJob +" was submitted successfully");
+    } else {
+      LOG.info("The job "+ asyncJob +" was not submitted",submitJob.getRight().getError());
 
-    //handleController.persistHandleForJob(job);
+    }
 
-    //TODO: New implementation
+  }
+
+  private String[] getStatements(String jobDatabase, String query) {
+    return new String[]{"use database "+ jobDatabase,query};
   }
 
   private void setupHiveBeforeQueryExecute() {
@@ -365,6 +388,20 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
     job.setQueryFile(jobQueryFilePath);
 
     LOG.debug("Query file for job#" + job.getId() + ": " + jobQueryFilePath);
+  }
+
+
+  private ConnectionConfig getHiveConnectionConfig() {
+    Map<String, String> map = Maps.newHashMap();
+    map.put("serviceDiscoveryMode","zookeeper");
+    map.put("zooKeeperNamespace","hiveserver2");
+    return new ConnectionConfig.ConnectionConfigBuilder()
+            .withUsername("admin")
+            .withPassword("admin")
+            .withHost("c6401.ambari.apache.org")
+            .withPort(2181)
+            .withAuthParams(map)
+            .build();
   }
 
   private String getRelatedSavedQueryFile() {
