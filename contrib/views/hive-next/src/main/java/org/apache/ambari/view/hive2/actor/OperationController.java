@@ -173,7 +173,6 @@ public class OperationController extends HiveActor {
     }
 
     // set up the connect with ExecuteJob id for terminations
-    connect.setJobId(jobId);
     subActor.tell(connect, self());
     subActor.tell(job, self());
 
@@ -222,7 +221,6 @@ public class OperationController extends HiveActor {
     }
 
     // Termination requires that the ref is known in case of sync jobs
-    connect.setSync();
     subActor.tell(connect, self());
     subActor.tell(job, sender());
   }

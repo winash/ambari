@@ -28,7 +28,7 @@ public class PropertyValidator implements Validator {
   public static final String WEBHDFS_URL = "webhdfs.url";
   public static final String HIVE_PORT = "hive.port";
   public static final String YARN_ATS_URL = "yarn.ats.url";
-  public static final String HIVE_AUTH = "hive.auth";
+  public static final String HIVE_SESSION_PARAMS = "hive.session.params";
 
   @Override
   public ValidationResult validateInstance(ViewInstanceDefinition viewInstanceDefinition, ValidationContext validationContext) {
@@ -38,21 +38,21 @@ public class PropertyValidator implements Validator {
   @Override
   public ValidationResult validateProperty(String property, ViewInstanceDefinition viewInstanceDefinition, ValidationContext validationContext) {
     // Validate non cluster associated properties
-    if (property.equals(HIVE_AUTH)) {
-      String auth = viewInstanceDefinition.getPropertyMap().get(HIVE_AUTH);
+    if (property.equals(HIVE_SESSION_PARAMS)) {
+      String auth = viewInstanceDefinition.getPropertyMap().get(HIVE_SESSION_PARAMS);
 
       if (auth != null && !auth.isEmpty()) {
         for(String param : auth.split(";")) {
           String[] keyvalue = param.split("=");
           if (keyvalue.length != 2) {
-            return new InvalidPropertyValidationResult(false, "Can not parse authentication param " + param + " in " + auth);
+            return new InvalidPropertyValidationResult(false, "Can not parse session param " + param + " in " + auth);
           }
         }
       }
     }
 
     // if associated with cluster, no need to validate associated properties
-    String cluster = viewInstanceDefinition.getClusterHandle();
+    Long cluster = viewInstanceDefinition.getClusterHandle();
     if (cluster != null) {
       return ValidationResult.SUCCESS;
     }
@@ -62,20 +62,6 @@ public class PropertyValidator implements Validator {
       String webhdfsUrl = viewInstanceDefinition.getPropertyMap().get(WEBHDFS_URL);
       if (!ValidatorUtils.validateHdfsURL(webhdfsUrl)) {
         return new InvalidPropertyValidationResult(false, "Must be valid URL");
-      }
-    }
-
-    if (property.equals(HIVE_PORT)) {
-      String hivePort = viewInstanceDefinition.getPropertyMap().get(HIVE_PORT);
-      if (hivePort != null) {
-        try {
-          int port = Integer.valueOf(hivePort);
-          if (port < 1 || port > 65535) {
-            return new InvalidPropertyValidationResult(false, "Must be from 1 to 65535");
-          }
-        } catch (NumberFormatException e) {
-          return new InvalidPropertyValidationResult(false, "Must be integer");
-        }
       }
     }
 

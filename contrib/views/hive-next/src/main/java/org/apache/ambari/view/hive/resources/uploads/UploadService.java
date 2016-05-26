@@ -70,6 +70,38 @@ public class UploadService extends BaseService {
   private static final String HIVE_DEFAULT_METASTORE_LOCATION = "/apps/hive/warehouse" ;
   final private static String HIVE_DEFAULT_DB = "default";
 
+  public void validateForUploadFile(UploadFromHdfsInput input){
+    if( null == input.getInputFileType()){
+      throw new IllegalArgumentException("inputFileType parameter cannot be null.");
+    }
+    if( null == input.getHdfsPath()){
+      throw new IllegalArgumentException("hdfsPath parameter cannot be null.");
+    }
+    if( null == input.getTableName()){
+      throw new IllegalArgumentException("tableName parameter cannot be null.");
+    }
+    if( null == input.getDatabaseName()){
+      throw new IllegalArgumentException("databaseName parameter cannot be null.");
+    }
+
+    if( input.getIsFirstRowHeader() == null ){
+      input.setIsFirstRowHeader(false);
+    }
+  }
+
+  public void validateForPreview(UploadFromHdfsInput input){
+    if( input.getIsFirstRowHeader() == null ){
+      input.setIsFirstRowHeader(false);
+    }
+
+    if( null == input.getInputFileType()){
+      throw new IllegalArgumentException("inputFileType parameter cannot be null.");
+    }
+    if( null == input.getHdfsPath()){
+      throw new IllegalArgumentException("hdfsPath parameter cannot be null.");
+    }
+  }
+
   @POST
   @Path("/previewFromHdfs")
   @Consumes(MediaType.APPLICATION_JSON)
@@ -79,6 +111,7 @@ public class UploadService extends BaseService {
     InputStream uploadedInputStream = null;
     try {
       uploadedInputStream = getHDFSFileStream(input.getHdfsPath());
+      this.validateForPreview(input);
       PreviewData pd = generatePreview(input.getIsFirstRowHeader(), input.getInputFileType(), uploadedInputStream);
       String tableName = getBasenameFromPath(input.getHdfsPath());
       return createPreviewResponse(pd, input.getIsFirstRowHeader(),tableName);
@@ -100,12 +133,18 @@ public class UploadService extends BaseService {
   @Path("/preview")
   @Consumes(MediaType.MULTIPART_FORM_DATA)
   public Response uploadForPreview(
-          @FormDataParam("file") InputStream uploadedInputStream,
-          @FormDataParam("file") FormDataContentDisposition fileDetail,
-          @FormDataParam("isFirstRowHeader") Boolean isFirstRowHeader,
-          @FormDataParam("inputFileType") String inputFileType
+    @FormDataParam("file") InputStream uploadedInputStream,
+    @FormDataParam("file") FormDataContentDisposition fileDetail,
+    @FormDataParam("isFirstRowHeader") Boolean isFirstRowHeader,
+    @FormDataParam("inputFileType") String inputFileType
   ) {
     try {
+      if( null == inputFileType)
+        throw new IllegalArgumentException("inputFileType parameter cannot be null.");
+
+      if( null == isFirstRowHeader )
+        isFirstRowHeader = false;
+
       PreviewData pd = generatePreview(isFirstRowHeader, inputFileType, uploadedInputStream);
       return createPreviewResponse(pd, isFirstRowHeader,getBasename(fileDetail.getFileName()));
     } catch (Exception e) {
@@ -121,13 +160,13 @@ public class UploadService extends BaseService {
   @Produces(MediaType.APPLICATION_JSON)
   public Response createTable(TableInput tableInput) {
     try {
+      tableInput.validate();
       List<ColumnDescriptionImpl> header = tableInput.getHeader();
       String databaseName = tableInput.getDatabaseName();
       String tableName = tableInput.getTableName();
       Boolean isFirstRowHeader = tableInput.getIsFirstRowHeader();
       String fileTypeStr = tableInput.getFileType();
       HiveFileType hiveFileType = HiveFileType.valueOf(fileTypeStr);
-
 
       TableInfo ti = new TableInfo(databaseName, tableName, header, hiveFileType);
       String tableCreationQuery = generateCreateQuery(ti);
@@ -153,7 +192,9 @@ public class UploadService extends BaseService {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   public Response uploadFileFromHdfs(UploadFromHdfsInput input ) {
-    if (ParseOptions.InputFileType.CSV.toString().equals(input.getInputFileType()) && input.getIsFirstRowHeader().equals(Boolean.FALSE)) {
+    this.validateForUploadFile(input);
+
+    if (ParseOptions.InputFileType.CSV.toString().equals(input.getInputFileType()) && Boolean.FALSE.equals(input.getIsFirstRowHeader())) {
       // upload using the LOAD query
       LoadQueryInput loadQueryInput = new LoadQueryInput(input.getHdfsPath(), input.getDatabaseName(), input.getTableName());
       String loadQuery = new QueryGenerator().generateLoadQuery(loadQueryInput);
@@ -200,12 +241,12 @@ public class UploadService extends BaseService {
   @Consumes(MediaType.MULTIPART_FORM_DATA)
   @Produces(MediaType.APPLICATION_JSON)
   public Response uploadFile(
-          @FormDataParam("file") InputStream uploadedInputStream,
-          @FormDataParam("file") FormDataContentDisposition fileDetail,
-          @FormDataParam("isFirstRowHeader") Boolean isFirstRowHeader,
-          @FormDataParam("inputFileType") String inputFileType,   // the format of the file uploaded. CSV/JSON etc.
-          @FormDataParam("tableName") String tableName,
-          @FormDataParam("databaseName") String databaseName
+    @FormDataParam("file") InputStream uploadedInputStream,
+    @FormDataParam("file") FormDataContentDisposition fileDetail,
+    @FormDataParam("isFirstRowHeader") Boolean isFirstRowHeader,
+    @FormDataParam("inputFileType") String inputFileType,   // the format of the file uploaded. CSV/JSON etc.
+    @FormDataParam("tableName") String tableName,
+    @FormDataParam("databaseName") String databaseName
   ) {
     try {
 
@@ -329,7 +370,7 @@ public class UploadService extends BaseService {
   }
 
   private String getHiveMetaStoreLocation() {
-    String dir = this.getAmbariApi().getProperty(HIVE_SITE,HIVE_METASTORE_LOCATION_KEY,HIVE_METASTORE_LOCATION_KEY_VIEW_PROPERTY);
+    String dir = context.getProperties().get(HIVE_METASTORE_LOCATION_KEY_VIEW_PROPERTY);
     if(dir != null && !dir.trim().isEmpty()){
       return dir;
     }else{
@@ -339,7 +380,7 @@ public class UploadService extends BaseService {
   }
 
   private void uploadFile(final String filePath, InputStream uploadedInputStream)
-          throws IOException, InterruptedException {
+    throws IOException, InterruptedException {
     byte[] chunk = new byte[1024];
     FSDataOutputStream out = getSharedObjectsFactory().getHdfsApi().create(filePath, false);
     int n = -1;
@@ -349,13 +390,17 @@ public class UploadService extends BaseService {
     out.close();
   }
 
-  private PreviewData generatePreview(Boolean isFirstRowHeader, String inputFileType, InputStream uploadedInputStream) throws IOException {
+  private PreviewData generatePreview(Boolean isFirstRowHeader, String inputFileType, InputStream uploadedInputStream) throws Exception {
     ParseOptions parseOptions = new ParseOptions();
     parseOptions.setOption(ParseOptions.OPTIONS_FILE_TYPE, inputFileType);
-    if (inputFileType.equals(ParseOptions.InputFileType.CSV.toString()) && !isFirstRowHeader)
-      parseOptions.setOption(ParseOptions.OPTIONS_HEADER, ParseOptions.HEADER.PROVIDED_BY_USER.toString());
+    if (inputFileType.equals(ParseOptions.InputFileType.CSV.toString())){
+      if(isFirstRowHeader)
+        parseOptions.setOption(ParseOptions.OPTIONS_HEADER, ParseOptions.HEADER.FIRST_RECORD.toString());
+      else
+        parseOptions.setOption(ParseOptions.OPTIONS_HEADER, ParseOptions.HEADER.NONE.toString());
+    }
     else
-      parseOptions.setOption(ParseOptions.OPTIONS_HEADER, ParseOptions.HEADER.FIRST_RECORD.toString());
+      parseOptions.setOption(ParseOptions.OPTIONS_HEADER, ParseOptions.HEADER.EMBEDDED.toString());
 
     LOG.info("isFirstRowHeader : {}, inputFileType : {}", isFirstRowHeader, inputFileType);
 
@@ -381,13 +426,13 @@ public class UploadService extends BaseService {
   }
 
   private String uploadFileFromStream(
-          InputStream uploadedInputStream,
-          Boolean isFirstRowHeader,
-          String inputFileType,   // the format of the file uploaded. CSV/JSON etc.
-          String tableName,
-          String databaseName
+    InputStream uploadedInputStream,
+    Boolean isFirstRowHeader,
+    String inputFileType,   // the format of the file uploaded. CSV/JSON etc.
+    String tableName,
+    String databaseName
 
-  ) throws IOException {
+  ) throws Exception {
     LOG.info(" uploading file into databaseName {}, tableName {}", databaseName, tableName);
     ParseOptions parseOptions = new ParseOptions();
     parseOptions.setOption(ParseOptions.OPTIONS_FILE_TYPE, inputFileType);

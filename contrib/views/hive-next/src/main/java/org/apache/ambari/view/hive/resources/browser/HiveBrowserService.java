@@ -25,11 +25,11 @@ import org.apache.ambari.view.hive.client.ConnectionConfig;
 import org.apache.ambari.view.hive.client.Cursor;
 import org.apache.ambari.view.hive.client.DDLDelegator;
 import org.apache.ambari.view.hive.client.DDLDelegatorImpl;
-import org.apache.ambari.view.hive.client.PersistentCursor;
 import org.apache.ambari.view.hive.client.Row;
 import org.apache.ambari.view.hive.resources.jobs.ResultsPaginationController;
 import org.apache.ambari.view.hive.utils.BadRequestFormattedException;
 import org.apache.ambari.view.hive.utils.ServiceFormattedException;
+import org.apache.ambari.view.hive2.ConnectionFactory;
 import org.apache.ambari.view.hive2.ConnectionSystem;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
@@ -256,11 +256,6 @@ public class HiveBrowserService {
 
 
   private ConnectionConfig getHiveConnectionConfig() {
-    return new ConnectionConfig.ConnectionConfigBuilder()
-      .withUsername("admin")
-      .withPassword("")
-      .withHost("c6402.ambari.apache.org")
-      .withPort(10000)
-      .build();
+    return ConnectionFactory.create(context);
   }
 }
