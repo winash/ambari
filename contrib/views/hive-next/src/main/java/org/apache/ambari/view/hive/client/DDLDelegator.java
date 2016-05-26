@@ -13,9 +13,9 @@ public interface DDLDelegator {
 
   List<ColumnDescription> getTableDescription(ConnectionConfig config, String database, String table, String like, boolean extended);
 
-  Cursor<Row> getDbListCursor(ConnectionConfig config, String like);
+  Cursor<Row, ColumnDescription> getDbListCursor(ConnectionConfig config, String like);
 
-  Cursor<Row> getTableListCursor(ConnectionConfig config, String database, String like);
+  Cursor<Row, ColumnDescription> getTableListCursor(ConnectionConfig config, String database, String like);
 
-  Cursor<Row> getTableDescriptionCursor(ConnectionConfig config, String database, String table, String like, boolean extended);
+  Cursor<Row, ColumnDescription> getTableDescriptionCursor(ConnectionConfig config, String database, String table, String like, boolean extended);
 }

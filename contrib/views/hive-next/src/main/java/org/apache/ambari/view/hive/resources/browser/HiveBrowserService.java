@@ -22,6 +22,7 @@ import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.ViewResourceHandler;
 import org.apache.ambari.view.hive.client.ColumnDescription;
 import org.apache.ambari.view.hive.client.ConnectionConfig;
+import org.apache.ambari.view.hive.client.Cursor;
 import org.apache.ambari.view.hive.client.DDLDelegator;
 import org.apache.ambari.view.hive.client.DDLDelegatorImpl;
 import org.apache.ambari.view.hive.client.PersistentCursor;
@@ -102,10 +103,10 @@ public class HiveBrowserService {
       final DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
       return ResultsPaginationController.getInstance(context)
           .request("databases", searchId, false, fromBeginning, count, format, requestedColumns,
-            new Callable<PersistentCursor<Row>>() {
+            new Callable<Cursor<Row, ColumnDescription>>() {
               @Override
-              public PersistentCursor<Row> call() throws Exception {
-                return (PersistentCursor<Row>) delegator.getDbListCursor(getHiveConnectionConfig(), finalLike);
+              public Cursor<Row, ColumnDescription> call() throws Exception {
+                return delegator.getDbListCursor(getHiveConnectionConfig(), finalLike);
               }
             }).build();
     } catch (WebApplicationException ex) {
@@ -166,10 +167,10 @@ public class HiveBrowserService {
       try {
         return ResultsPaginationController.getInstance(context)
           .request(db + ":tables:", searchId, false, fromBeginning, count, format, requestedColumns,
-            new Callable<PersistentCursor<Row>>() {
+            new Callable<Cursor<Row, ColumnDescription>>() {
               @Override
-              public PersistentCursor<Row> call() throws Exception {
-                return (PersistentCursor<Row>) delegator.getTableListCursor(getHiveConnectionConfig(), db, finalLike);
+              public Cursor<Row, ColumnDescription> call() throws Exception {
+                return delegator.getTableListCursor(getHiveConnectionConfig(), db, finalLike);
               }
             }).build();
       } catch (Exception ex) {
@@ -242,10 +243,10 @@ public class HiveBrowserService {
     try {
       return ResultsPaginationController.getInstance(context)
         .request(db + ":tables:" + table + ":columns", searchId, false, fromBeginning, count, format, requestedColumns,
-          new Callable<PersistentCursor<Row>>() {
+          new Callable<Cursor<Row, ColumnDescription>>() {
             @Override
-            public PersistentCursor<Row> call() throws Exception {
-              return (PersistentCursor<Row>) delegator.getTableDescriptionCursor(getHiveConnectionConfig(), db, table, finalLike, false);
+            public Cursor<Row, ColumnDescription> call() throws Exception {
+              return delegator.getTableDescriptionCursor(getHiveConnectionConfig(), db, table, finalLike, false);
             }
           }).build();
     } catch (Exception ex) {

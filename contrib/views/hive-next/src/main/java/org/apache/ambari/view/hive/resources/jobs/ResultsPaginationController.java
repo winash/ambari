@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.client.ColumnDescription;
+import org.apache.ambari.view.hive.client.Cursor;
 import org.apache.ambari.view.hive.client.HiveClientException;
 import org.apache.ambari.view.hive.client.PersistentCursor;
 import org.apache.ambari.view.hive.client.Row;
@@ -62,15 +63,15 @@ public class ResultsPaginationController {
 
   private static final long EXPIRING_TIME = 10*60*1000;  // 10 minutes
   private static final int DEFAULT_FETCH_COUNT = 50;
-  private Map<String, PersistentCursor<Row>> resultsCache;
+  private Map<String, Cursor<Row, ColumnDescription>> resultsCache;
 
-  public static class CustomTimeToLiveExpirationPolicy extends PassiveExpiringMap.ConstantTimeToLiveExpirationPolicy<String, PersistentCursor<Row>> {
+  public static class CustomTimeToLiveExpirationPolicy extends PassiveExpiringMap.ConstantTimeToLiveExpirationPolicy<String, Cursor<Row, ColumnDescription>> {
     public CustomTimeToLiveExpirationPolicy(long timeToLiveMillis) {
       super(timeToLiveMillis);
     }
 
     @Override
-    public long expirationTime(String key, PersistentCursor<Row> value) {
+    public long expirationTime(String key, Cursor<Row, ColumnDescription> value) {
       if (key.startsWith("$")) {
         return -1;  //never expire
       }
@@ -78,9 +79,9 @@ public class ResultsPaginationController {
     }
   }
 
-  private Map<String, PersistentCursor<Row>> getResultsCache() {
+  private Map<String, Cursor<Row, ColumnDescription>> getResultsCache() {
     if (resultsCache == null) {
-      PassiveExpiringMap<String, PersistentCursor<Row>> resultsCacheExpiringMap =
+      PassiveExpiringMap<String, Cursor<Row, ColumnDescription>> resultsCacheExpiringMap =
           new PassiveExpiringMap<>(new CustomTimeToLiveExpirationPolicy(EXPIRING_TIME));
       resultsCache = Collections.synchronizedMap(resultsCacheExpiringMap);
     }
@@ -99,17 +100,19 @@ public class ResultsPaginationController {
     if (!getResultsCache().containsKey(effectiveKey)) {
       return false;
     }
-    PersistentCursor cursor = getResultsCache().get(effectiveKey);
+    Cursor cursor = getResultsCache().get(effectiveKey);
     getResultsCache().put(effectiveKey, cursor);
     return true;
   }
 
-  private PersistentCursor<Row> getResultsSet(String key, Callable<PersistentCursor<Row>> makeResultsSet) {
+  private Cursor<Row, ColumnDescription> getResultsSet(String key, Callable<Cursor<Row, ColumnDescription>> makeResultsSet) {
     if (!getResultsCache().containsKey(key)) {
-      PersistentCursor resultSet = null;
+      Cursor resultSet;
       try {
         resultSet = makeResultsSet.call();
-        resultSet.reset();
+        if (resultSet.isResettable()) {
+          resultSet.reset();
+        }
       } catch (HiveClientException ex) {
         throw new HiveClientFormattedException(ex);
       } catch (Exception ex) {
@@ -121,17 +124,18 @@ public class ResultsPaginationController {
     return getResultsCache().get(key);
   }
 
-  public Response.ResponseBuilder request(String key, String searchId, boolean canExpire, String fromBeginning, Integer count, String format, String requestedColumns, Callable<PersistentCursor<Row>> makeResultsSet) throws HiveClientException {
+  public Response.ResponseBuilder request(String key, String searchId, boolean canExpire, String fromBeginning, Integer count, String format, String requestedColumns, Callable<Cursor<Row, ColumnDescription>> makeResultsSet) throws HiveClientException {
     if (searchId == null)
       searchId = DEFAULT_SEARCH_ID;
     key = key + "?" + searchId;
     if (!canExpire)
       key = "$" + key;
     if (fromBeginning != null && fromBeginning.equals("true") && getResultsCache().containsKey(key)) {
+
       getResultsCache().remove(key);
     }
 
-    PersistentCursor<Row> resultSet = getResultsSet(key, makeResultsSet);
+    Cursor<Row, ColumnDescription> resultSet = getResultsSet(key, makeResultsSet);
 
     if (count == null)
       count = DEFAULT_FETCH_COUNT;

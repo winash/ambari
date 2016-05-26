@@ -10,12 +10,12 @@ import java.util.List;
  * Class which gets the complete resultset on the first call to next() and
  * iterates over the returned result. It is a forward-only cursor
  */
-public class PersistentCursor<T> implements ResettableCursor, ResultCursor<T>  {
+public class PersistentCursor<T, R> implements Cursor<T, R>  {
   private List<T> rows = Lists.newArrayList();
-  private List<ColumnDescription> columns = Lists.newArrayList();
+  private List<R> columns = Lists.newArrayList();
   private int offset = 0;
 
-  public PersistentCursor(List<T> rows, List<ColumnDescription> columns) {
+  public PersistentCursor(List<T> rows, List<R> columns) {
     this.rows = rows;
     this.columns = columns;
   }
@@ -44,6 +44,11 @@ public class PersistentCursor<T> implements ResettableCursor, ResultCursor<T>  {
   }
 
   @Override
+  public boolean isResettable() {
+    return true;
+  }
+
+  @Override
   public void reset() {
     this.offset = 0;
   }
@@ -54,7 +59,7 @@ public class PersistentCursor<T> implements ResettableCursor, ResultCursor<T>  {
   }
 
   @Override
-  public List<ColumnDescription> getDescription() {
+  public List<R> getDescription() {
     return columns;
   }
 }

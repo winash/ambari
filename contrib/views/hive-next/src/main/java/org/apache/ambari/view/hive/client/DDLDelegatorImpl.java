@@ -79,7 +79,7 @@ public class DDLDelegatorImpl implements DDLDelegator {
   }
 
   @Override
-  public Cursor<Row> getDbListCursor(ConnectionConfig config, String like) {
+  public Cursor<Row, ColumnDescription> getDbListCursor(ConnectionConfig config, String like) {
     Optional<Result> rowsFromDB = getRowsFromDB(config, getDatabaseListStatements(like));
     if (rowsFromDB.isPresent()) {
       Result result = rowsFromDB.get();
@@ -90,7 +90,7 @@ public class DDLDelegatorImpl implements DDLDelegator {
   }
 
   @Override
-  public Cursor<Row> getTableListCursor(ConnectionConfig config, String database, String like) {
+  public Cursor<Row, ColumnDescription> getTableListCursor(ConnectionConfig config, String database, String like) {
     Optional<Result> rowsFromDB = getRowsFromDB(config, getTableListStatements(database, like));
     if (rowsFromDB.isPresent()) {
       Result result = rowsFromDB.get();
@@ -101,7 +101,7 @@ public class DDLDelegatorImpl implements DDLDelegator {
   }
 
   @Override
-  public Cursor<Row> getTableDescriptionCursor(ConnectionConfig config, String database, String table, String like, boolean extended) {
+  public Cursor<Row, ColumnDescription> getTableDescriptionCursor(ConnectionConfig config, String database, String table, String like, boolean extended) {
     Optional<Result> tableDescriptionOptional = getTableDescription(config, database, table, like);
     if(tableDescriptionOptional.isPresent()) {
       Result result = tableDescriptionOptional.get();
