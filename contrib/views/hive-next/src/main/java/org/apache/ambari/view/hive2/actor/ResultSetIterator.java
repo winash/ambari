@@ -9,21 +9,25 @@ import org.apache.ambari.view.hive.persistence.Storage;
 import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
 import org.apache.ambari.view.hive.resources.jobs.viewJobs.Job;
 import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl;
-import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.AdvanceCursor;
+import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.job.FetchFailed;
 import org.apache.ambari.view.hive2.actor.message.job.Next;
 import org.apache.ambari.view.hive2.actor.message.job.NoMoreItems;
 import org.apache.ambari.view.hive2.actor.message.job.Result;
+import org.apache.ambari.view.hive2.actor.message.lifecycle.CleanUp;
+import org.apache.ambari.view.hive2.actor.message.lifecycle.KeepAlive;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.util.List;
 
 public class ResultSetIterator extends HiveActor {
+  private final Logger LOG = LoggerFactory.getLogger(getClass());
+
   private static final int DEFAULT_BATCH_SIZE = 100;
   public static final String NULL = "NULL";
 
@@ -31,9 +35,7 @@ public class ResultSetIterator extends HiveActor {
   private final ResultSet resultSet;
   private final int batchSize;
 
-  private static ResultSetMetaData metaData;
   private List<ColumnDescription> columnDescriptions;
-  private NumberFormat nf = new DecimalFormat();
   private int columnCount;
   private Storage storage;
   boolean buffered = false;
@@ -61,11 +63,12 @@ public class ResultSetIterator extends HiveActor {
 
   @Override
   void handleMessage(HiveMessage hiveMessage) {
+    sendKeepAlive();
     Object message = hiveMessage.getMessage();
     if (message instanceof Next) {
       getNext();
     }
-    if(message instanceof AdvanceCursor){
+    if (message instanceof AdvanceCursor) {
       AdvanceCursor moveCursor = (AdvanceCursor) message;
       String jobid = moveCursor.getJob();
       getNext();
@@ -81,13 +84,17 @@ public class ResultSetIterator extends HiveActor {
 
   }
 
+  private void sendKeepAlive() {
+    parent.tell(new KeepAlive(), self());
+  }
+
   private void getNext() {
     /**
      * Quick fix for pre buffered result sets
      */
-    if(buffered && lastResult != null){
+    if (buffered && lastResult != null) {
       sender().tell(lastResult, self());
-      buffered =false;
+      buffered = false;
       return;
     }
     List<Row> rows = Lists.newArrayList();
@@ -95,8 +102,9 @@ public class ResultSetIterator extends HiveActor {
       try {
         initialize();
       } catch (SQLException ex) {
+        LOG.error("Failed to fetch metadata for the Resultset", ex);
         sender().tell(new FetchFailed("Failed to get metadata for ResultSet", ex), self());
-        // TODO: Tell the parent to clean up
+        cleanUpResources();
       }
     }
     int index = 0;
@@ -109,7 +117,7 @@ public class ResultSetIterator extends HiveActor {
       if (index == 0) {
         // We have hit end of resultSet
         sender().tell(new NoMoreItems(), self());
-        // TODO: Tell the parent to clean up
+        cleanUpResources();
       } else {
         Result result = new Result(rows, columnDescriptions);
         lastResult = result;
@@ -117,14 +125,19 @@ public class ResultSetIterator extends HiveActor {
       }
 
     } catch (SQLException ex) {
-      sender().tell(new FetchFailed("Failed to get metadata for ResultSet", ex), self());
-      // TODO: Tell the parent to clean up
+      LOG.error("Failed to fetch next batch for the Resultset", ex);
+      sender().tell(new FetchFailed("Failed to fetch next batch for the Resultset", ex), self());
+      cleanUpResources();
     }
+  }
+
+  private void cleanUpResources() {
+    parent.tell(new CleanUp(), self());
   }
 
   private Row getRowFromResultSet(ResultSet resultSet) throws SQLException {
     Object[] values = new Object[columnCount];
-    for(int i = 0; i < columnCount; i++) {
+    for (int i = 0; i < columnCount; i++) {
       values[i] = resultSet.getObject(i + 1);
     }
     return new Row(values);
@@ -132,10 +145,10 @@ public class ResultSetIterator extends HiveActor {
 
   private void initialize() throws SQLException {
     metaDataFetched = true;
-    metaData = resultSet.getMetaData();
+    ResultSetMetaData metaData = resultSet.getMetaData();
     columnCount = metaData.getColumnCount();
     columnDescriptions = Lists.newArrayList();
-    for(int i = 1; i <= columnCount; i++) {
+    for (int i = 1; i <= columnCount; i++) {
       String columnName = metaData.getColumnName(i);
       String typeName = metaData.getColumnTypeName(i);
       ColumnDescription description = new ColumnDescriptionShort(columnName, typeName, i);

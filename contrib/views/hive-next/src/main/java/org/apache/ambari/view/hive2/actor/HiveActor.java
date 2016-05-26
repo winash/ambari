@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
 
 public abstract class HiveActor extends UntypedActor {
 
-    protected final Logger LOG = LoggerFactory.getLogger(getClass());
+    private final Logger LOG = LoggerFactory.getLogger(getClass());
 
     @Override
     final public void onReceive(Object message) throws Exception {

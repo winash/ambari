@@ -2,6 +2,7 @@ package org.apache.ambari.view.hive2.actor;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.PoisonPill;
 import akka.actor.Props;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
@@ -33,7 +34,11 @@ import java.util.concurrent.TimeUnit;
 
 public class AsyncJdbcConnector extends JdbcConnector {
 
-  protected final Logger LOG = LoggerFactory.getLogger(getClass());
+  private final Logger LOG = LoggerFactory.getLogger(getClass());
+
+  private ActorRef logAggregator = null;
+  private ActorRef asyncQueryExecutor = null;
+  private ActorRef resultSetActor = null;
 
 
   public AsyncJdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent, ConnectionDelegate connectionDelegate, Storage storage) {
@@ -54,17 +59,39 @@ public class AsyncJdbcConnector extends JdbcConnector {
     return true;
   }
 
+  @Override
+  protected void cleanUpChildren() {
+    if(logAggregator != null && !logAggregator.isTerminated()) {
+      LOG.debug("Sending poison pill to log aggregator");
+      logAggregator.tell(PoisonPill.getInstance(), self());
+    }
+
+    if(asyncQueryExecutor != null && !asyncQueryExecutor.isTerminated()) {
+      LOG.debug("Sending poison pill to Async Query Executor");
+      asyncQueryExecutor.tell(PoisonPill.getInstance(), self());
+    }
+
+    if(resultSetActor != null && !resultSetActor.isTerminated()) {
+      LOG.debug("Sending poison pill to Resultset Actor");
+      resultSetActor.tell(PoisonPill.getInstance(), self());
+    }
+  }
+
   private void execute(AsyncJob message) {
     this.jobId = message.getJobId();
     updateJobStatus(jobId,Job.JOB_STATE_INITIALIZED);
     String errorMessage = "Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive";
     if (connectable == null) {
       exceptionWriter.tell(new AsyncExecutionFailed(message.getJobId(), errorMessage), ActorRef.noSender());
+      cleanUp();
+      return;
     }
 
     Optional<HiveConnection> connectionOptional = connectable.getConnection();
     if (!connectionOptional.isPresent()) {
       exceptionWriter.tell(new AsyncExecutionFailed(message.getJobId(), errorMessage), ActorRef.noSender());
+      cleanUp();
+      return;
     }
 
     try {
@@ -73,7 +100,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
       // There should be a result set, which either has a result set, or an empty value
       // for operations which do not return anything
 
-      ActorRef logAggregator = getContext().actorOf(
+      logAggregator = getContext().actorOf(
         Props.create(LogAggregator.class, system, hdfsApi, currentStatement.get(), message.getLogFile()), message.getUsername() + ":" + message.getJobId() + "-logAggregator"
       );
 
@@ -83,7 +110,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
       if (resultSetOptional.isPresent()) {
         // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
         // tell the result holder to assign the result set for further operations
-        ActorRef resultSetActor = getContext().actorOf(Props.create(ResultSetIterator.class, self(), resultSetOptional.get(),storage));
+        resultSetActor = getContext().actorOf(Props.create(ResultSetIterator.class, self(), resultSetOptional.get(),storage));
         sender().tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>left(resultSetActor)), self());
         parent.tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>left(resultSetActor)), self());
 
@@ -91,7 +118,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
       } else {
         // Case when this is an Update/query with no results
         // Wait for operation to complete and add results;
-        ActorRef asyncQueryExecutor = getContext().actorOf(
+        asyncQueryExecutor = getContext().actorOf(
                 Props.create(AsyncQueryExecutor.class,currentStatement.get()),
                 message.getUsername() + ":" + message.getJobId() + "-asyncQueryExecutor");
         sender().tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>right(asyncQueryExecutor)), self());

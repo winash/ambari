@@ -2,6 +2,7 @@ package org.apache.ambari.view.hive2.actor;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.PoisonPill;
 import akka.actor.Props;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
@@ -16,11 +17,16 @@ import org.apache.ambari.view.hive2.actor.message.job.ResultSetHolder;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.DestroyConnector;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class SyncJdbcConnector extends JdbcConnector {
+
+  private final Logger LOG = LoggerFactory.getLogger(getClass());
+  private ActorRef resultSetActor = null;
 
   public SyncJdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent, ConnectionDelegate connectionDelegate, Storage storage) {
     super(viewContext, hdfsApi, system, parent, connectionDelegate, storage);
@@ -39,6 +45,14 @@ public class SyncJdbcConnector extends JdbcConnector {
   @Override
   protected boolean isAsync() {
     return false;
+  }
+
+  @Override
+  protected void cleanUpChildren() {
+    if(resultSetActor != null && !resultSetActor.isTerminated()) {
+      LOG.debug("Sending poison pill to log aggregator");
+      resultSetActor.tell(PoisonPill.getInstance(), self());
+    }
   }
 
   protected void execute(final SyncJob job) {
@@ -98,11 +112,15 @@ public class SyncJdbcConnector extends JdbcConnector {
     String errorMessage = operation.notConnectedErrorMessage();
     if (connectable == null) {
       sender.tell(new ExecutionFailed(errorMessage), ActorRef.noSender());
+      cleanUp();
+      return;
     }
 
     Optional<HiveConnection> connectionOptional = connectable.getConnection();
     if (!connectionOptional.isPresent()) {
       sender.tell(new ExecutionFailed(errorMessage), ActorRef.noSender());
+      cleanUp();
+      return;
     }
 
     try {
@@ -113,10 +131,13 @@ public class SyncJdbcConnector extends JdbcConnector {
       } else {
         sender.tell(new NoResult(), self());
         parent.tell(new DestroyConnector(username, jobId, isAsync()), self());
-        // TODO: tell parent to freeup connection.
+        // TODO: Do we really need to close disconnect this connection
+        // self().tell(PoisonPill.getInstance(), ActorRef.noSender());
       }
     } catch (SQLException e) {
+      LOG.error(operation.executionFailedErrorMessage(), e);
       sender.tell(new ExecutionFailed(operation.executionFailedErrorMessage(), e), self());
+      cleanUp();
     }
   }
 

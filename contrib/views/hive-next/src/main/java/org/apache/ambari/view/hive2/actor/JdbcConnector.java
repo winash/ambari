@@ -13,25 +13,32 @@ import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
+import org.apache.ambari.view.hive2.actor.message.lifecycle.CleanUp;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.DestroyConnector;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.FreeConnector;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.InactivityCheck;
+import org.apache.ambari.view.hive2.actor.message.lifecycle.KeepAlive;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.TerminateInactivityCheck;
 import org.apache.ambari.view.hive2.internal.Connectable;
 import org.apache.ambari.view.hive2.internal.ConnectionException;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveStatement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
 
 import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
+
 
 /**
  * Wraps one Jdbc connection per user, per instance. This is used to delegate execute the statements and
  * creates child actors to delegate the resultset extraction, YARN/ATS querying for ExecuteJob info and Log Aggregation
  */
 public abstract class JdbcConnector extends HiveActor {
+
+  private final Logger LOG = LoggerFactory.getLogger(getClass());
 
   /**
    * Interval for maximum inactivity allowed
@@ -97,6 +104,7 @@ public abstract class JdbcConnector extends HiveActor {
 
   @Override
   public void handleMessage(HiveMessage hiveMessage) {
+    keepAlive();
     Object message = hiveMessage.getMessage();
     if (message instanceof Connect) {
       connect((Connect) message);
@@ -104,6 +112,10 @@ public abstract class JdbcConnector extends HiveActor {
       checkInactivity();
     } else if (message instanceof TerminateInactivityCheck) {
       checkTerminationInactivity();
+    } else if (message instanceof KeepAlive) {
+      keepAlive();
+    } else if (message instanceof CleanUp) {
+      cleanUp();
     } else {
       handleJobMessage(hiveMessage);
     }
@@ -111,6 +123,26 @@ public abstract class JdbcConnector extends HiveActor {
 
   protected abstract void handleJobMessage(HiveMessage message);
   protected abstract boolean isAsync();
+  protected abstract void cleanUpChildren();
+
+  private void keepAlive() {
+    lastActivityTimestamp = System.currentTimeMillis();
+  }
+
+  protected void cleanUp() {
+    try {
+      connectionDelegate.closeStatement();
+      connectionDelegate.closeResultSet();
+    } catch (SQLException e) {
+      LOG.error("Failed to clean up statement or resultset", e);
+      exceptionWriter.tell(new ExecutionFailed("Failed to clean up statement or resultset", e), ActorRef.noSender());
+    }
+    LOG.debug("Sending poison pill to exception writer");
+    exceptionWriter.tell(PoisonPill.getInstance(), self());
+    inactivityScheduler.cancel();
+    cleanUpChildren();
+    parent.tell(new FreeConnector(username, jobId, isAsync()), self());
+  }
 
   protected Optional<String> getJobId() {
     return Optional.fromNullable(jobId);
@@ -150,29 +182,14 @@ public abstract class JdbcConnector extends HiveActor {
     } catch (ItemNotFound itemNotFound) {
       // Cannot do anything if the job is not present
     }
-
-
-
   }
 
   private void checkInactivity() {
     long current = System.currentTimeMillis();
     long l = current - lastActivityTimestamp;
-    System.out.println(l);
     if (l > MAX_INACTIVITY_INTERVAL) {
       // Stop all the sub-actors created
-      try {
-        connectionDelegate.closeStatement();
-        connectionDelegate.closeResultSet();
-      } catch (SQLException e) {
-        exceptionWriter.tell(new ExecutionFailed("Failed to clean up connection", e), ActorRef.noSender());
-      }
-      // Tell the router actor to remove the reference from its cache
-      // Tell the router actor to render this connectable actor as free.
-
-      parent.tell(new FreeConnector(username, jobId, isAsync()), self());
-
-      inactivityScheduler.cancel();
+      cleanUp();
     }
   }
 
@@ -188,7 +205,8 @@ public abstract class JdbcConnector extends HiveActor {
         connectionDelegate.closeStatement();
         connectionDelegate.closeResultSet();
       } catch (SQLException e) {
-        exceptionWriter.tell(new ExecutionFailed("Failed to clean up connection", e), ActorRef.noSender());
+        LOG.error("Failed to clean up statement or resultset", e);
+        exceptionWriter.tell(new ExecutionFailed("Failed to clean up statement or resultset", e), ActorRef.noSender());
       }
 
       parent.tell(new DestroyConnector(username, jobId, isAsync()), this.self());
