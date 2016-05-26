@@ -10,5 +10,5 @@ public interface Cursor<T, R> extends Iterator<T>, Iterable<T>{
   boolean isResettable();
   void reset();
   int getOffset();
-  List<R> getDescription();
+  List<R> getDescriptions();
 }

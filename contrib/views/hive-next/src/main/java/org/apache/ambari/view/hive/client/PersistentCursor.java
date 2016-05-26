@@ -7,8 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Class which gets the complete resultset on the first call to next() and
- * iterates over the returned result. It is a forward-only cursor
+ * Wrapper over other iterables. Does not block and can be reset to start again from beginning.
  */
 public class PersistentCursor<T, R> implements Cursor<T, R>  {
   private List<T> rows = Lists.newArrayList();
@@ -40,7 +39,7 @@ public class PersistentCursor<T, R> implements Cursor<T, R>  {
 
   @Override
   public void remove() {
-    throw new RuntimeException("Method not supported");
+    throw new RuntimeException("Read only cursor. Method not supported");
   }
 
   @Override
@@ -59,7 +58,7 @@ public class PersistentCursor<T, R> implements Cursor<T, R>  {
   }
 
   @Override
-  public List<R> getDescription() {
+  public List<R> getDescriptions() {
     return columns;
   }
 }

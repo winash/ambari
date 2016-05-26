@@ -27,7 +27,6 @@ import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive.client.ColumnDescription;
 import org.apache.ambari.view.hive.client.Cursor;
 import org.apache.ambari.view.hive.client.HiveClientException;
-import org.apache.ambari.view.hive.client.PersistentCursor;
 import org.apache.ambari.view.hive.client.Row;
 import org.apache.ambari.view.hive.utils.BadRequestFormattedException;
 import org.apache.ambari.view.hive.utils.HiveClientFormattedException;
@@ -140,7 +139,7 @@ public class ResultsPaginationController {
     if (count == null)
       count = DEFAULT_FETCH_COUNT;
 
-    List<ColumnDescription> allschema = resultSet.getDescription();
+    List<ColumnDescription> allschema = resultSet.getDescriptions();
     List<Row> allRowEntries = FluentIterable.from(resultSet)
       .limit(count).toList();
 

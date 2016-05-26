@@ -188,7 +188,6 @@ public class DDLDelegatorImpl implements DDLDelegator {
           if (descriptions == null) {
             descriptions = result.getColumns();
           }
-          result.getRows();
           rows.addAll(result.getRows());
         }
 
