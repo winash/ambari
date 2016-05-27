@@ -42,12 +42,14 @@ import org.apache.ambari.view.hive2.internal.Either;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.ambari.view.utils.hdfs.HdfsApiException;
 import org.apache.ambari.view.utils.hdfs.HdfsUtil;
+import org.apache.commons.lang.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 
 public class JobControllerImpl implements JobController, ModifyNotificationDelegate {
@@ -114,7 +116,7 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
   }*/
 
     @Override
-    public void submit() {
+    public void submit() throws Throwable {
         String jobDatabase = getJobDatabase();
         String query = getQueryForJob();
         ConnectionSystem system = ConnectionSystem.getInstance();
@@ -125,17 +127,22 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
         Either<AsyncExecutionSuccess, AsyncExecutionFailed> submitJob = asyncJobRunner.submitJob(getHiveConnectionConfig(), asyncJob, job);
         if (submitJob.isLeft()) {
             // The job ran successfully
-            final AsyncExecutionSuccess result = submitJob.getLeft();
             LOG.info("The job " + asyncJob + " was completed successfully");
         } else {
+            // the Job failed
             LOG.info("The job " + asyncJob + " was not submitted", submitJob.getRight().getError());
-
+            // fail the Job
+            job.setStatus(Job.JOB_STATE_ERROR);
+            throw submitJob.getRight().getError();
         }
 
     }
 
     private String[] getStatements(String jobDatabase, String query) {
-        return new String[]{"use database " + jobDatabase, query};
+        String[] split = query.split("\\r?\\n");
+        String[] strings = {"use " + jobDatabase};
+        String[] both = (String[])ArrayUtils.addAll(strings,split);
+        return both;
     }
 
     private void setupHiveBeforeQueryExecute() {

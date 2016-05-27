@@ -73,6 +73,10 @@ public class AsyncJobRunnerImpl implements AsyncJobRunner {
                 }
 
             }
+            if(submitted instanceof AsyncExecutionFailed){
+                // The query could not be submitted
+                return Either.right((AsyncExecutionFailed)submitted);
+            }
 
 
         } catch (Throwable e){

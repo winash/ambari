@@ -80,7 +80,11 @@ public class JobResourceProvider implements ResourceProvider<Job> {
     }
     getResourceManager().create(item);
     JobController jobController = new SharedObjectsFactory(context).getJobControllerFactory().createControllerForJob(item);
-    jobController.submit();
+    try {
+      jobController.submit();
+    } catch (Throwable throwable) {
+      throw new SystemException("error on creating resource", throwable);
+    }
   }
 
   @Override

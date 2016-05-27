@@ -181,7 +181,7 @@ public class UploadService extends BaseService {
 
       LOG.info("table creation jobId {}", actualTableJobId);
       return Response.ok(jobObject).status(201).build();
-    } catch (Exception e) {
+    } catch (Throwable e) {
       LOG.error("Exception occurred while creating table with input : " + tableInput, e);
       throw new ServiceFormattedException(e.getMessage(), e);
     }
@@ -206,7 +206,7 @@ public class UploadService extends BaseService {
         jo.put("jobId", job.getId());
 
         return Response.ok(jo).build();
-      } catch (Exception e) {
+      } catch (Throwable e) {
         LOG.error("Exception occurred while creating job for Load From HDFS query : " + loadQuery, e);
         throw new ServiceFormattedException(e.getMessage(), e);
       }
@@ -275,7 +275,7 @@ public class UploadService extends BaseService {
       jo.put("jobId", job.getId());
 
       return Response.ok(jo).build();
-    } catch (Exception e) {
+    } catch (Throwable e) {
       throw new ServiceFormattedException(e.getMessage(), e);
     }
   }
@@ -295,7 +295,7 @@ public class UploadService extends BaseService {
       jo.put("jobId", job.getId());
 
       return Response.ok(jo).build();
-    } catch (Exception e) {
+    } catch (Throwable e) {
       throw new ServiceFormattedException(e.getMessage(), e);
     }
   }
@@ -351,7 +351,7 @@ public class UploadService extends BaseService {
     return new QueryGenerator().generateDropTableQuery(deleteQueryInput);
   }
 
-  private Job createJob(String query, String databaseName) throws InvocationTargetException, IllegalAccessException, ItemNotFound {
+  private Job createJob(String query, String databaseName) throws Throwable {
     Map jobInfo = new HashMap<String, String>();
     jobInfo.put("title", "Internal Table Creation");
     jobInfo.put("forcedContent", query);

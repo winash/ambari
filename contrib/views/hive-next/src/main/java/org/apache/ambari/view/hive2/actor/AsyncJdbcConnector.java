@@ -131,6 +131,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
       // update the error on the log
       AsyncExecutionFailed failure = new AsyncExecutionFailed(message.getJobId(),
               e.getMessage(), e);
+      sender().tell(failure, self());
       exceptionWriter.tell(failure, ActorRef.noSender());
       // Update the operation controller to write an error on the right side
       LOG.error("Caught SQL excpetion for job-"+message,e);

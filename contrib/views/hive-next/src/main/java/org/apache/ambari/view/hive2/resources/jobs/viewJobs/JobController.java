@@ -26,7 +26,7 @@ public interface JobController {
 
   //TODO: New implementation
 
-  void submit();
+  void submit() throws Throwable;
 
   void cancel() throws ItemNotFound;
 

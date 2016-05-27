@@ -483,7 +483,7 @@ public class JobService extends BaseService {
       throw ex;
     } catch (ItemNotFound itemNotFound) {
       throw new NotFoundFormattedException(itemNotFound.getMessage(), itemNotFound);
-    } catch (Exception ex) {
+    } catch (Throwable ex) {
       throw new ServiceFormattedException(ex.getMessage(), ex);
     }
   }

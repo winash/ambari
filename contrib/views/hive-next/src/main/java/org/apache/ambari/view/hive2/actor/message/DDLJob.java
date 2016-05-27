@@ -2,6 +2,7 @@ package org.apache.ambari.view.hive2.actor.message;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.ambari.view.ViewContext;
+import org.apache.commons.lang.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -27,7 +28,7 @@ public class DDLJob extends HiveJob {
 
   private String clean(String statement) {
     String replaced = statement.replace(SEMICOLON, "");
-    return replaced.trim();
+    return StringUtils.chomp(replaced);
   }
 
   public Collection<String> getStatements() {
@@ -43,7 +44,7 @@ public class DDLJob extends HiveJob {
     if (!(statements.length > 1))
       return Collections.emptyList();
     else
-      return ImmutableList.copyOf(Arrays.copyOfRange(statements, 0, statements.length - 2));
+      return ImmutableList.copyOf(Arrays.copyOfRange(statements, 0, statements.length - 1));
   }
 
   /**
