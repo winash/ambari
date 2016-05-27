@@ -25,6 +25,7 @@ import org.apache.ambari.view.hive2.client.AsyncJobRunner;
 import org.apache.ambari.view.hive2.client.AsyncJobRunnerImpl;
 import org.apache.ambari.view.hive2.client.ColumnDescription;
 import org.apache.ambari.view.hive2.client.Cursor;
+import org.apache.ambari.view.hive2.client.EmptyCursor;
 import org.apache.ambari.view.hive2.client.HiveAuthCredentials;
 import org.apache.ambari.view.hive2.client.HiveClientException;
 import org.apache.ambari.view.hive2.client.NonPersistentCursor;
@@ -314,7 +315,7 @@ public class JobService extends BaseService {
   @GET
   @Path("{jobId}/results")
   @Produces(MediaType.APPLICATION_JSON)
-  public Response getResults(@PathParam("jobId") String jobId,
+  public Response getResults(@PathParam("jobId") final String jobId,
                              @QueryParam("first") String fromBeginning,
                              @QueryParam("count") Integer count,
                              @QueryParam("searchId") String searchId,
@@ -323,22 +324,21 @@ public class JobService extends BaseService {
     try {
       final JobController jobController = getResourceManager().readController(jobId);
 
-      String username = context.getUsername();
+      final String username = context.getUsername();
 
       ConnectionSystem system = ConnectionSystem.getInstance();
-      AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem(),context);
-
-      final Optional<NonPersistentCursor> cursor = asyncJobRunner.getCursor(jobId, username);
-      if(!cursor.isPresent()){
-        return ResultsPaginationController.emptyResponse().build();
-      }
+      final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem(),context);
 
       return ResultsPaginationController.getInstance(context)
               .request(jobId, searchId, true, fromBeginning, count, format,requestedColumns,
                       new Callable<Cursor< Row, ColumnDescription >>() {
                         @Override
                         public Cursor call() throws Exception {
+                          Optional<NonPersistentCursor> cursor = asyncJobRunner.getCursor(jobId, username);
+                          if(cursor.isPresent())
                           return cursor.get();
+                          else
+                            return new EmptyCursor();
                         }
                       }).build();
 

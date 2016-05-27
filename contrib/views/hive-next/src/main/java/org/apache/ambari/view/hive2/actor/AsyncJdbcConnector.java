@@ -115,8 +115,9 @@ public class AsyncJdbcConnector extends JdbcConnector {
       } else {
         // Case when this is an Update/query with no results
         // Wait for operation to complete and add results;
-        asyncQueryExecutor = getContext().actorOf(
-                Props.create(AsyncQueryExecutor.class,currentStatement.get()),
+
+        ActorRef asyncQueryExecutor = getContext().actorOf(
+                Props.create(AsyncQueryExecutor.class,currentStatement.get(),storage,jobId),
                 message.getUsername() + ":" + message.getJobId() + "-asyncQueryExecutor");
         sender().tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>right(asyncQueryExecutor)), self());
         parent.tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>right(asyncQueryExecutor)), self());
