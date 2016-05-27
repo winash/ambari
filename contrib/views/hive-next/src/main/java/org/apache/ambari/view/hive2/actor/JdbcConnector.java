@@ -130,18 +130,13 @@ public abstract class JdbcConnector extends HiveActor {
   protected abstract void cleanUpChildren();
 
   private void keepAlive() {
+    LOG.info("Keep alive for {} sent by {}",self(),sender());
     lastActivityTimestamp = System.currentTimeMillis();
   }
 
   protected void cleanUp() {
-    try {
-      connectionDelegate.closeStatement();
-      connectionDelegate.closeResultSet();
-    } catch (SQLException e) {
-      LOG.error("Failed to clean up statement or resultset", e);
-      exceptionWriter.tell(new ExecutionFailed("Failed to clean up statement or resultset", e), ActorRef.noSender());
-    }
-    LOG.debug("Sending poison pill to exception writer");
+    cleanUpStatementAndResultSet();
+    LOG.info("Sending poison pill to exception writer");
     exceptionWriter.tell(PoisonPill.getInstance(), self());
     inactivityScheduler.cancel();
     cleanUpChildren();
@@ -189,6 +184,7 @@ public abstract class JdbcConnector extends HiveActor {
   }
 
   private void checkInactivity() {
+    LOG.info("Inactivity check");
     long current = System.currentTimeMillis();
     long l = current - lastActivityTimestamp;
     if (l > MAX_INACTIVITY_INTERVAL) {
@@ -205,17 +201,21 @@ public abstract class JdbcConnector extends HiveActor {
     long current = System.currentTimeMillis();
     if ((current - lastActivityTimestamp) > MAX_TERMINATION_INACTIVITY_INTERVAL) {
       // Stop all sub-actors if any currently live
-      try {
-        connectionDelegate.closeStatement();
-        connectionDelegate.closeResultSet();
-      } catch (SQLException e) {
-        LOG.error("Failed to clean up statement or resultset", e);
-        exceptionWriter.tell(new ExecutionFailed("Failed to clean up statement or resultset", e), ActorRef.noSender());
-      }
+      cleanUpStatementAndResultSet();
 
       parent.tell(new DestroyConnector(username, jobId, isAsync()), this.self());
 
       self().tell(PoisonPill.getInstance(), ActorRef.noSender());
+    }
+  }
+
+  private void cleanUpStatementAndResultSet() {
+    try {
+      connectionDelegate.closeStatement();
+      connectionDelegate.closeResultSet();
+    } catch (SQLException e) {
+      LOG.error("Failed to clean up statement or resultset", e);
+      exceptionWriter.tell(new ExecutionFailed("Failed to clean up statement or resultset", e), ActorRef.noSender());
     }
   }
 

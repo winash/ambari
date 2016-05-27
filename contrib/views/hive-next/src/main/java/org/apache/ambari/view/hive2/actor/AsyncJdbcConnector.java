@@ -88,7 +88,9 @@ public class AsyncJdbcConnector extends JdbcConnector {
 
     Optional<HiveConnection> connectionOptional = connectable.getConnection();
     if (!connectionOptional.isPresent()) {
-      exceptionWriter.tell(new AsyncExecutionFailed(message.getJobId(), errorMessage), ActorRef.noSender());
+      AsyncExecutionFailed executionFailed = new AsyncExecutionFailed(message.getJobId(), errorMessage);
+      exceptionWriter.tell(executionFailed, ActorRef.noSender());
+      sender().tell(executionFailed, self());
       cleanUp();
       return;
     }

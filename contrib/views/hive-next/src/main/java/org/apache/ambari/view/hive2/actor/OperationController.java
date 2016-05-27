@@ -5,8 +5,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
-import org.apache.ambari.view.hive2.actor.message.RegisterActor;
-import org.apache.ambari.view.hive2.persistence.Storage;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
 import org.apache.ambari.view.hive2.actor.message.Connect;
@@ -15,17 +13,23 @@ import org.apache.ambari.view.hive2.actor.message.FetchResult;
 import org.apache.ambari.view.hive2.actor.message.HiveJob;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.JobRejected;
+import org.apache.ambari.view.hive2.actor.message.RegisterActor;
 import org.apache.ambari.view.hive2.actor.message.ResultReady;
 import org.apache.ambari.view.hive2.actor.message.job.AsyncExecutionFailed;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.DestroyConnector;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.FreeConnector;
 import org.apache.ambari.view.hive2.internal.ContextSupplier;
 import org.apache.ambari.view.hive2.internal.Either;
+import org.apache.ambari.view.hive2.persistence.Storage;
+import org.apache.ambari.view.hive2.utils.LoggingOutputStream;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
-import org.apache.ambari.view.utils.hdfs.HdfsApiException;
-import org.apache.ambari.view.utils.hdfs.HdfsUtil;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.collections4.map.HashedMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
@@ -39,6 +43,8 @@ import java.util.UUID;
  * store the state for them.
  */
 public class OperationController extends HiveActor {
+
+  private final Logger LOG = LoggerFactory.getLogger(getClass());
 
   private final ActorSystem system;
   private final ActorRef deathWatch;
@@ -103,14 +109,10 @@ public class OperationController extends HiveActor {
     }
 
     if (message instanceof FreeConnector) {
-      System.out.println(getSender());
-      System.out.println(message);
       freeConnector((FreeConnector) message);
     }
 
     if (message instanceof DestroyConnector) {
-      System.out.println(getSender());
-      System.out.println(message);
       destroyConnector((DestroyConnector) message);
     }
   }
@@ -153,7 +155,7 @@ public class OperationController extends HiveActor {
     if (subActor == null) {
       Optional<HdfsApi> hdfsApiOptional = hdfsApiSupplier.get(viewContext);
       if (!hdfsApiOptional.isPresent()) {
-        sender().tell(new JobRejected(username, jobId, "Failed to connect to Hive."), ActorRef.noSender());
+        sender().tell(new JobRejected(username, jobId, "Failed to connect to Hive."), self());
         return;
       }
       HdfsApi hdfsApi = hdfsApiOptional.get();
@@ -242,9 +244,11 @@ public class OperationController extends HiveActor {
       removeFromSyncPool(message.getUsername(), sender);
     }
     removeFromAvailable(message.getUsername(), sender);
+    logMaps();
   }
 
   private void freeConnector(FreeConnector message) {
+    LOG.info("About to free connector for job {} and user {}",message.getJobId(),message.getUsername());
     ActorRef sender = getSender();
     if (message.isForAsync()) {
       Optional<ActorRef> refOptional = removeFromBusyPool(message.getUsername(), message.getJobId());
@@ -260,6 +264,21 @@ public class OperationController extends HiveActor {
     }
 
 
+    logMaps();
+
+  }
+
+  private void logMaps() {
+    LOG.info("Pool status");
+    LoggingOutputStream out = new LoggingOutputStream(LOG, LoggingOutputStream.LogLevel.INFO);
+    MapUtils.debugPrint(new PrintStream(out), "Busy connections", busyConnections);
+    MapUtils.debugPrint(new PrintStream(out), "Available connections", availableConnections);
+    MapUtils.debugPrint(new PrintStream(out), "Sync busy connections", syncBusyConnections);
+    try {
+      out.close();
+    } catch (IOException e) {
+      LOG.warn("Cannot close Logging output stream, this may lead to leaks");
+    }
   }
 
   private Optional<ActorRef> removeFromSyncPool(String userName, ActorRef refToFree) {

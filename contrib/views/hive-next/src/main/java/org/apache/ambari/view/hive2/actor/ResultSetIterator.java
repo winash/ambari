@@ -63,6 +63,7 @@ public class ResultSetIterator extends HiveActor {
 
   @Override
   void handleMessage(HiveMessage hiveMessage) {
+    LOG.info("Result set Iterator wil handle message {}",hiveMessage);
     sendKeepAlive();
     Object message = hiveMessage.getMessage();
     if (message instanceof Next) {
@@ -85,6 +86,7 @@ public class ResultSetIterator extends HiveActor {
   }
 
   private void sendKeepAlive() {
+    LOG.info("Sending a keep alive to {}",parent);
     parent.tell(new KeepAlive(), self());
   }
 

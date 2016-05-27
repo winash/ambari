@@ -5,6 +5,8 @@ import akka.actor.ActorSystem;
 import akka.actor.Inbox;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive2.actor.message.JobRejected;
+import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
 import org.apache.ambari.view.hive2.resources.jobs.viewJobs.Job;
 import org.apache.ambari.view.hive2.actor.message.AdvanceCursor;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
@@ -76,6 +78,13 @@ public class AsyncJobRunnerImpl implements AsyncJobRunner {
             if(submitted instanceof AsyncExecutionFailed){
                 // The query could not be submitted
                 return Either.right((AsyncExecutionFailed)submitted);
+            }
+
+            if(submitted instanceof JobRejected){
+                // The query could not be submitted
+                JobRejected jobRejected = (JobRejected) submitted;
+                return Either.right(new AsyncExecutionFailed(jobRejected.getJobId(),"Cannot connect to hive",
+                        new NotConnectedException("Cannot connect to hive")));
             }
 
 
