@@ -1,8 +1,8 @@
 package org.apache.ambari.view.hive2.internal;
 
 import org.apache.ambari.view.ViewContext;
-import org.apache.ambari.view.hive.persistence.DataStoreStorage;
-import org.apache.ambari.view.hive.persistence.Storage;
+import org.apache.ambari.view.hive2.persistence.DataStoreStorage;
+import org.apache.ambari.view.hive2.persistence.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

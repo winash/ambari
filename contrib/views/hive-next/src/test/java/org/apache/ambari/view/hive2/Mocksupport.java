@@ -2,7 +2,7 @@ package org.apache.ambari.view.hive2;
 
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
-import org.apache.ambari.view.hive.persistence.DataStoreStorage;
+import org.apache.ambari.view.hive2.persistence.DataStoreStorage;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.internal.Connectable;
 import org.apache.ambari.view.hive2.internal.ConnectionException;

@@ -2,10 +2,10 @@ package org.apache.ambari.view.hive2.actor;
 
 import akka.actor.UntypedActor;
 import com.google.common.base.Optional;
-import org.apache.ambari.view.hive.persistence.Storage;
-import org.apache.ambari.view.hive.persistence.utils.ItemNotFound;
-import org.apache.ambari.view.hive.resources.jobs.viewJobs.Job;
-import org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl;
+import org.apache.ambari.view.hive2.persistence.Storage;
+import org.apache.ambari.view.hive2.persistence.utils.ItemNotFound;
+import org.apache.ambari.view.hive2.resources.jobs.viewJobs.Job;
+import org.apache.ambari.view.hive2.resources.jobs.viewJobs.JobImpl;
 import org.apache.ambari.view.hive2.actor.message.job.AsyncExecutionFailed;
 import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;

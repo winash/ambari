@@ -1,9 +1,8 @@
 package org.apache.ambari.view.hive2.actor.message.job;
 
 import com.google.common.collect.ImmutableList;
-import org.apache.ambari.view.hive.client.ColumnDescription;
-import org.apache.ambari.view.hive.client.Row;
-import org.apache.ambari.view.hive2.actor.ResultSetIterator;
+import org.apache.ambari.view.hive2.client.ColumnDescription;
+import org.apache.ambari.view.hive2.client.Row;
 
 import java.util.List;
 

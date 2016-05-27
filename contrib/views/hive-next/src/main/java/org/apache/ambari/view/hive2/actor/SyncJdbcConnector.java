@@ -6,7 +6,7 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
-import org.apache.ambari.view.hive.persistence.Storage;
+import org.apache.ambari.view.hive2.persistence.Storage;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.GetColumnMetadataJob;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;

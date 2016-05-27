@@ -22,8 +22,8 @@
 
     <min-ambari-version>2.0.*</min-ambari-version>
 
-    <validator-class>org.apache.ambari.view.hive.PropertyValidator</validator-class>
-    <view-class>org.apache.ambari.view.hive.HiveViewImpl</view-class>
+    <validator-class>org.apache.ambari.view.hive2.PropertyValidator</validator-class>
+    <view-class>org.apache.ambari.view.hive2.HiveViewImpl</view-class>
 
     <!-- Hive Configs -->
     <parameter>
@@ -210,78 +210,78 @@
         <name>savedQuery</name>
         <plural-name>savedQueries</plural-name>
         <id-property>id</id-property>
-        <resource-class>org.apache.ambari.view.hive.resources.savedQueries.SavedQuery</resource-class>
-        <provider-class>org.apache.ambari.view.hive.resources.savedQueries.SavedQueryResourceProvider</provider-class>
-        <service-class>org.apache.ambari.view.hive.resources.savedQueries.SavedQueryService</service-class>
+        <resource-class>org.apache.ambari.view.hive2.resources.savedQueries.SavedQuery</resource-class>
+        <provider-class>org.apache.ambari.view.hive2.resources.savedQueries.SavedQueryResourceProvider</provider-class>
+        <service-class>org.apache.ambari.view.hive2.resources.savedQueries.SavedQueryService</service-class>
     </resource>
 
     <resource>
         <name>fileResource</name>
         <plural-name>fileResources</plural-name>
         <id-property>id</id-property>
-        <resource-class>org.apache.ambari.view.hive.resources.resources.FileResourceItem</resource-class>
-        <provider-class>org.apache.ambari.view.hive.resources.resources.FileResourceResourceProvider</provider-class>
-        <service-class>org.apache.ambari.view.hive.resources.resources.FileResourceService</service-class>
+        <resource-class>org.apache.ambari.view.hive2.resources.resources.FileResourceItem</resource-class>
+        <provider-class>org.apache.ambari.view.hive2.resources.resources.FileResourceResourceProvider</provider-class>
+        <service-class>org.apache.ambari.view.hive2.resources.resources.FileResourceService</service-class>
     </resource>
 
     <resource>
         <name>udf</name>
         <plural-name>udfs</plural-name>
         <id-property>id</id-property>
-        <resource-class>org.apache.ambari.view.hive.resources.udfs.UDF</resource-class>
-        <provider-class>org.apache.ambari.view.hive.resources.udfs.UDFResourceProvider</provider-class>
-        <service-class>org.apache.ambari.view.hive.resources.udfs.UDFService</service-class>
+        <resource-class>org.apache.ambari.view.hive2.resources.udfs.UDF</resource-class>
+        <provider-class>org.apache.ambari.view.hive2.resources.udfs.UDFResourceProvider</provider-class>
+        <service-class>org.apache.ambari.view.hive2.resources.udfs.UDFService</service-class>
     </resource>
 
     <resource>
         <name>job</name>
         <plural-name>jobs</plural-name>
         <id-property>id</id-property>
-        <resource-class>org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl</resource-class>
-        <provider-class>org.apache.ambari.view.hive.resources.jobs.JobResourceProvider</provider-class>
-        <service-class>org.apache.ambari.view.hive.resources.jobs.JobService</service-class>
+        <resource-class>org.apache.ambari.view.hive2.resources.jobs.viewJobs.JobImpl</resource-class>
+        <provider-class>org.apache.ambari.view.hive2.resources.jobs.JobResourceProvider</provider-class>
+        <service-class>org.apache.ambari.view.hive2.resources.jobs.JobService</service-class>
     </resource>
 
     <resource>
         <name>upload</name>
         <plural-name>uploads</plural-name>
-        <service-class>org.apache.ambari.view.hive.resources.uploads.UploadService</service-class>
+        <service-class>org.apache.ambari.view.hive2.resources.uploads.UploadService</service-class>
     </resource>
 
     <resource>
         <name>file</name>
-        <service-class>org.apache.ambari.view.hive.resources.files.FileService</service-class>
+        <service-class>org.apache.ambari.view.hive2.resources.files.FileService</service-class>
     </resource>
 
     <resource>
         <name>ddl</name>
-        <service-class>org.apache.ambari.view.hive.resources.browser.HiveBrowserService</service-class>
+        <service-class>org.apache.ambari.view.hive2.resources.browser.HiveBrowserService</service-class>
     </resource>
 
     <resource>
         <name>hive</name>
-        <service-class>org.apache.ambari.view.hive.HelpService</service-class>
+        <service-class>org.apache.ambari.view.hive2.HelpService</service-class>
     </resource>
 
     <persistence>
         <entity>
-            <class>org.apache.ambari.view.hive.resources.jobs.viewJobs.JobImpl</class>
+            <class>org.apache.ambari.view.hive2.resources.jobs.viewJobs.JobImpl</class>
             <id-property>id</id-property>
         </entity>
         <entity>
-            <class>org.apache.ambari.view.hive.resources.savedQueries.SavedQuery</class>
+            <class>org.apache.ambari.view.hive2.resources.savedQueries.SavedQuery</class>
             <id-property>id</id-property>
         </entity>
         <entity>
-            <class>org.apache.ambari.view.hive.resources.udfs.UDF</class>
+            <class>org.apache.ambari.view.hive2.resources.udfs.UDF</class>
             <id-property>id</id-property>
         </entity>
         <entity>
-            <class>org.apache.ambari.view.hive.resources.resources.FileResourceItem</class>
+            <class>org.apache.ambari.view.hive2.resources.resources.FileResourceItem</class>
             <id-property>id</id-property>
         </entity>
         <entity>
-            <class>org.apache.ambari.view.hive.TestBean</class>
+            <class>org.apache.ambari.view.hive2.TestBean</class>
             <id-property>id</id-property>
         </entity>
     </persistence>

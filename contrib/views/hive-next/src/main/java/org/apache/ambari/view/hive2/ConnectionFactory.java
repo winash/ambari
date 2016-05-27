@@ -4,7 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 import org.apache.ambari.view.ViewContext;
-import org.apache.ambari.view.hive.client.ConnectionConfig;
+import org.apache.ambari.view.hive2.client.ConnectionConfig;
 
 import java.util.List;
 
