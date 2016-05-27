@@ -3,14 +3,12 @@ package org.apache.ambari.view.hive2;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
+import org.apache.ambari.view.hive2.actor.DeathWatch;
 import org.apache.ambari.view.hive2.actor.OperationController;
 import org.apache.ambari.view.hive2.internal.ConnectionSupplier;
 import org.apache.ambari.view.hive2.internal.DataStorageSupplier;
 import org.apache.ambari.view.hive2.internal.HdfsApiSupplier;
 
-/**
- * Created by dbhowmick on 5/20/16.
- */
 public class ConnectionSystem {
 
   private static final String ACTOR_SYSTEM_NAME = "HiveViewActorSystem";
@@ -37,7 +35,8 @@ public class ConnectionSystem {
   }
 
   private void createOperationController() {
-    this.operationController = actorSystem.actorOf(Props.create(OperationController.class, actorSystem, new ConnectionSupplier(), new DataStorageSupplier(), new HdfsApiSupplier()));
+    ActorRef deathWatch = actorSystem.actorOf(Props.create(DeathWatch.class));
+    this.operationController = actorSystem.actorOf(Props.create(OperationController.class, actorSystem,deathWatch, new ConnectionSupplier(), new DataStorageSupplier(), new HdfsApiSupplier()));
   }
 
   public ActorSystem getActorSystem() {

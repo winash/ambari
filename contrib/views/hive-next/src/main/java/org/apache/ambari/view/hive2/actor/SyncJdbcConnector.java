@@ -6,6 +6,7 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive2.actor.message.RegisterActor;
 import org.apache.ambari.view.hive2.persistence.Storage;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.GetColumnMetadataJob;
@@ -28,8 +29,8 @@ public class SyncJdbcConnector extends JdbcConnector {
   private final Logger LOG = LoggerFactory.getLogger(getClass());
   private ActorRef resultSetActor = null;
 
-  public SyncJdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent, ConnectionDelegate connectionDelegate, Storage storage) {
-    super(viewContext, hdfsApi, system, parent, connectionDelegate, storage);
+  public SyncJdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent,ActorRef deathWatch, ConnectionDelegate connectionDelegate, Storage storage) {
+    super(viewContext, hdfsApi, system, parent,deathWatch, connectionDelegate, storage);
   }
 
   @Override
@@ -127,6 +128,7 @@ public class SyncJdbcConnector extends JdbcConnector {
       Optional<ResultSet> resultSetOptional = operation.call(connectionOptional.get());
       if(resultSetOptional.isPresent()) {
         ActorRef resultSetActor = getContext().actorOf(Props.create(ResultSetIterator.class, self(), resultSetOptional.get()));
+        deathWatch.tell(new RegisterActor(resultSetActor),self());
         sender.tell(new ResultSetHolder(resultSetActor), self());
       } else {
         sender.tell(new NoResult(), self());

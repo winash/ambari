@@ -7,6 +7,7 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive2.actor.message.RegisterActor;
 import org.apache.ambari.view.hive2.persistence.Storage;
 import org.apache.ambari.view.hive2.persistence.utils.ItemNotFound;
 import org.apache.ambari.view.hive2.resources.jobs.viewJobs.JobImpl;
@@ -73,6 +74,7 @@ public abstract class JdbcConnector extends HiveActor {
   protected Cancellable terminateActorScheduler;
 
   protected Connectable connectable = null;
+  protected final ActorRef deathWatch;
   protected final ConnectionDelegate connectionDelegate;
   protected final ActorRef parent;
   protected final ActorRef exceptionWriter;
@@ -90,16 +92,18 @@ public abstract class JdbcConnector extends HiveActor {
   protected String username;
   protected String jobId;
 
-  public JdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent,
+  public JdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent,ActorRef deathWatch,
                        ConnectionDelegate connectionDelegate, Storage storage) {
     this.viewContext = viewContext;
     this.hdfsApi = hdfsApi;
     this.system = system;
     this.parent = parent;
+    this.deathWatch = deathWatch;
     this.connectionDelegate = connectionDelegate;
     this.storage = storage;
     this.lastActivityTimestamp = System.currentTimeMillis();
     exceptionWriter = getContext().actorOf(Props.create(ExceptionWriter.class, hdfsApi, storage), "Exception-Writer-" + viewContext.getUsername() + "-" + viewContext.getInstanceName());
+    deathWatch.tell(new RegisterActor(exceptionWriter),self());
   }
 
   @Override

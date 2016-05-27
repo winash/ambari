@@ -5,6 +5,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive2.actor.message.RegisterActor;
 import org.apache.ambari.view.hive2.persistence.Storage;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.AsyncJob;
@@ -40,6 +41,7 @@ import java.util.UUID;
 public class OperationController extends HiveActor {
 
   private final ActorSystem system;
+  private final ActorRef deathWatch;
   private final ContextSupplier<ConnectionDelegate> connectionSupplier;
   private final ContextSupplier<Storage> storageSupplier;
   private final ContextSupplier<Optional<HdfsApi>> hdfsApiSupplier;
@@ -61,10 +63,12 @@ public class OperationController extends HiveActor {
   private final Map<String, Set<ActorRef>> syncBusyConnections;
 
   public OperationController(ActorSystem system,
+                             ActorRef deathWatch,
                              ContextSupplier<ConnectionDelegate> connectionSupplier,
                              ContextSupplier<Storage> storageSupplier,
                              ContextSupplier<Optional<HdfsApi>> hdfsApiSupplier) {
     this.system = system;
+    this.deathWatch = deathWatch;
     this.connectionSupplier = connectionSupplier;
     this.storageSupplier = storageSupplier;
     this.hdfsApiSupplier = hdfsApiSupplier;
@@ -154,9 +158,10 @@ public class OperationController extends HiveActor {
       }
       HdfsApi hdfsApi = hdfsApiOptional.get();
 
-      subActor = getContext().actorOf(
-        Props.create(AsyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(viewContext), storageSupplier.get(viewContext)),
-        username + ":" + UUID.randomUUID().toString());
+      subActor = system.actorOf(
+        Props.create(AsyncJdbcConnector.class, viewContext, hdfsApi, system, self(),deathWatch, connectionSupplier.get(viewContext), storageSupplier.get(viewContext)),
+        username + ":" + "jobId:" + jobId + ":" + UUID.randomUUID().toString() + ":asyncjdbcConnector");
+      deathWatch.tell(new RegisterActor(subActor),self());
 
     }
 
@@ -208,8 +213,10 @@ public class OperationController extends HiveActor {
       HdfsApi hdfsApi = hdfsApiOptional.get();
 
       subActor = system.actorOf(
-        Props.create(SyncJdbcConnector.class, viewContext, hdfsApi, system, self(), connectionSupplier.get(viewContext), storageSupplier.get(viewContext)),
-        username + ":" + UUID.randomUUID().toString());
+        Props.create(SyncJdbcConnector.class, viewContext, hdfsApi, system, self(),deathWatch, connectionSupplier.get(viewContext), storageSupplier.get(viewContext)),
+        username + ":" + UUID.randomUUID().toString() + ":SyncjdbcConnector" );
+      deathWatch.tell(new RegisterActor(subActor),self());
+
     }
 
     if (syncBusyConnections.containsKey(username)) {
@@ -226,9 +233,6 @@ public class OperationController extends HiveActor {
     subActor.tell(job, sender());
   }
 
-  private HdfsApi getHdfsApi(ViewContext viewContext) throws HdfsApiException {
-    return HdfsUtil.connectToHDFSApi(viewContext);
-  }
 
   private void destroyConnector(DestroyConnector message) {
     ActorRef sender = getSender();

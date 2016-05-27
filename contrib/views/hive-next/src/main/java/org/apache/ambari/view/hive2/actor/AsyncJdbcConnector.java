@@ -6,6 +6,7 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive2.actor.message.RegisterActor;
 import org.apache.ambari.view.hive2.persistence.Storage;
 import org.apache.ambari.view.hive2.persistence.utils.ItemNotFound;
 import org.apache.ambari.view.hive2.resources.jobs.viewJobs.Job;
@@ -27,6 +28,7 @@ import scala.concurrent.duration.Duration;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 public class AsyncJdbcConnector extends JdbcConnector {
@@ -38,8 +40,8 @@ public class AsyncJdbcConnector extends JdbcConnector {
   private ActorRef resultSetActor = null;
 
 
-  public AsyncJdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent, ConnectionDelegate connectionDelegate, Storage storage) {
-    super(viewContext, hdfsApi, system, parent, connectionDelegate, storage);
+  public AsyncJdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent,ActorRef deathWatch, ConnectionDelegate connectionDelegate, Storage storage) {
+    super(viewContext, hdfsApi, system, parent,deathWatch, connectionDelegate, storage);
   }
 
   @Override
@@ -100,6 +102,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
       logAggregator = getContext().actorOf(
         Props.create(LogAggregator.class, system, hdfsApi, currentStatement.get(), message.getLogFile()), message.getUsername() + ":" + message.getJobId() + "-logAggregator"
       );
+      deathWatch.tell(new RegisterActor(logAggregator),self());
 
       updateGuidInJob(jobId, currentStatement.get());
       updateJobStatus(jobId,Job.JOB_STATE_RUNNING);
@@ -107,7 +110,9 @@ public class AsyncJdbcConnector extends JdbcConnector {
       if (resultSetOptional.isPresent()) {
         // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
         // tell the result holder to assign the result set for further operations
-        resultSetActor = getContext().actorOf(Props.create(ResultSetIterator.class, self(), resultSetOptional.get(),storage));
+        resultSetActor = getContext().actorOf(Props.create(ResultSetIterator.class, self(), resultSetOptional.get(),storage),
+                "ResultSetActor:ResultSetIterator:JobId:"+ jobId+":" + UUID.randomUUID().toString());
+        deathWatch.tell(new RegisterActor(resultSetActor),self());
         sender().tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>left(resultSetActor)), self());
         parent.tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>left(resultSetActor)), self());
 
@@ -119,6 +124,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
         ActorRef asyncQueryExecutor = getContext().actorOf(
                 Props.create(AsyncQueryExecutor.class,currentStatement.get(),storage,jobId),
                 message.getUsername() + ":" + message.getJobId() + "-asyncQueryExecutor");
+        deathWatch.tell(new RegisterActor(asyncQueryExecutor),self());
         sender().tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>right(asyncQueryExecutor)), self());
         parent.tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>right(asyncQueryExecutor)), self());
 
