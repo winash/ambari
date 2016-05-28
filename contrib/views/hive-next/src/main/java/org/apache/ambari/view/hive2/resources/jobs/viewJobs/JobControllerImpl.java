@@ -49,7 +49,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
 
 public class JobControllerImpl implements JobController, ModifyNotificationDelegate {
@@ -120,7 +119,7 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
         String jobDatabase = getJobDatabase();
         String query = getQueryForJob();
         ConnectionSystem system = ConnectionSystem.getInstance();
-        AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem(), context);
+        AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem());
         // create async Job
         //
         AsyncJob asyncJob = new AsyncJob(job.getId(), context.getUsername(), getStatements(jobDatabase, query), job.getLogFile(), context);

@@ -327,7 +327,7 @@ public class JobService extends BaseService {
       final String username = context.getUsername();
 
       ConnectionSystem system = ConnectionSystem.getInstance();
-      final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem(),context);
+      final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem());
 
       return ResultsPaginationController.getInstance(context)
               .request(jobId, searchId, true, fromBeginning, count, format,requestedColumns,

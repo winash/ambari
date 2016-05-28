@@ -12,6 +12,8 @@ import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.ambari.view.utils.hdfs.HdfsApiException;
 import org.apache.ambari.view.utils.hdfs.HdfsUtil;
 import org.apache.hive.jdbc.HiveStatement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
 
 import java.sql.SQLException;
@@ -22,6 +24,9 @@ import java.util.concurrent.TimeUnit;
  * Reads the logs for a ExecuteJob from the Statement and writes them into hdfs.
  */
 public class LogAggregator extends HiveActor {
+
+  private final Logger LOG = LoggerFactory.getLogger(getClass());
+
   public static final int AGGREGATION_INTERVAL = 30 * 1000;
   private final HdfsApi hdfsApi;
   private final HiveStatement statement;
@@ -46,7 +51,14 @@ public class LogAggregator extends HiveActor {
     }
 
     if (message instanceof GetMoreLogs) {
-//      getMoreLogs();
+      try {
+        getMoreLogs();
+      } catch (SQLException e) {
+        LOG.warn("SQL Error while getting logs");
+      } catch (HdfsApiException e) {
+        LOG.warn("HDFS Error while getting logs");
+
+      }
     }
   }
 
@@ -68,4 +80,13 @@ public class LogAggregator extends HiveActor {
       parent.tell(new LogAggregationFinished(), ActorRef.noSender());
     }
   }
+
+  @Override
+  public void postStop() throws Exception {
+    if(moreLogsScheduler != null && !moreLogsScheduler.isCancelled()){
+      moreLogsScheduler.cancel();
+    }
+
+  }
+
 }

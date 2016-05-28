@@ -31,12 +31,10 @@ public class AsyncJobRunnerImpl implements AsyncJobRunner {
 
     private final ActorRef controller;
     private final ActorSystem system;
-    private ViewContext viewContext;
 
-    public AsyncJobRunnerImpl(ActorRef controller, ActorSystem system, ViewContext viewContext) {
+    public AsyncJobRunnerImpl(ActorRef controller, ActorSystem system) {
         this.controller = controller;
         this.system = system;
-        this.viewContext = viewContext;
     }
 
 
