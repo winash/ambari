@@ -108,8 +108,10 @@ public abstract class JdbcConnector extends HiveActor {
 
   @Override
   public void handleMessage(HiveMessage hiveMessage) {
-    keepAlive();
     Object message = hiveMessage.getMessage();
+    if(!(message instanceof InactivityCheck) && !(message instanceof TerminateInactivityCheck)){
+      keepAlive();
+    }
     if (message instanceof Connect) {
       connect((Connect) message);
     } else if (message instanceof InactivityCheck) {
