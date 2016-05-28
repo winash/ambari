@@ -7,29 +7,28 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
-import org.apache.ambari.view.hive2.actor.message.RegisterActor;
-import org.apache.ambari.view.hive2.persistence.Storage;
-import org.apache.ambari.view.hive2.persistence.utils.ItemNotFound;
-import org.apache.ambari.view.hive2.resources.jobs.viewJobs.JobImpl;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.Connect;
+import org.apache.ambari.view.hive2.actor.message.HiveMessage;
+import org.apache.ambari.view.hive2.actor.message.RegisterActor;
 import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.CleanUp;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.DestroyConnector;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.FreeConnector;
-import org.apache.ambari.view.hive2.actor.message.HiveMessage;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.InactivityCheck;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.KeepAlive;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.TerminateInactivityCheck;
 import org.apache.ambari.view.hive2.internal.Connectable;
 import org.apache.ambari.view.hive2.internal.ConnectionException;
+import org.apache.ambari.view.hive2.persistence.Storage;
+import org.apache.ambari.view.hive2.persistence.utils.ItemNotFound;
+import org.apache.ambari.view.hive2.resources.jobs.viewJobs.JobImpl;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveStatement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
 
-import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
 
 
@@ -92,7 +91,7 @@ public abstract class JdbcConnector extends HiveActor {
   protected String username;
   protected String jobId;
 
-  public JdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent,ActorRef deathWatch,
+  public JdbcConnector(ViewContext viewContext, HdfsApi hdfsApi, ActorSystem system, ActorRef parent, ActorRef deathWatch,
                        ConnectionDelegate connectionDelegate, Storage storage) {
     this.viewContext = viewContext;
     this.hdfsApi = hdfsApi;
@@ -103,18 +102,13 @@ public abstract class JdbcConnector extends HiveActor {
     this.storage = storage;
     this.lastActivityTimestamp = System.currentTimeMillis();
     exceptionWriter = getContext().actorOf(Props.create(ExceptionWriter.class, hdfsApi, storage), "Exception-Writer-" + viewContext.getUsername() + "-" + viewContext.getInstanceName());
-    deathWatch.tell(new RegisterActor(exceptionWriter),self());
+    deathWatch.tell(new RegisterActor(exceptionWriter), self());
   }
 
   @Override
   public void handleMessage(HiveMessage hiveMessage) {
     Object message = hiveMessage.getMessage();
-    if(!(message instanceof InactivityCheck) && !(message instanceof TerminateInactivityCheck)){
-      keepAlive();
-    }
-    if (message instanceof Connect) {
-      connect((Connect) message);
-    } else if (message instanceof InactivityCheck) {
+    if (message instanceof InactivityCheck) {
       checkInactivity();
     } else if (message instanceof TerminateInactivityCheck) {
       checkTerminationInactivity();
@@ -123,31 +117,35 @@ public abstract class JdbcConnector extends HiveActor {
     } else if (message instanceof CleanUp) {
       cleanUp();
     } else {
-      handleJobMessage(hiveMessage);
+      handleNonLifecycleMessage(hiveMessage);
     }
   }
 
+  private void handleNonLifecycleMessage(HiveMessage hiveMessage) {
+    Object message = hiveMessage.getMessage();
+    keepAlive();
+    if (message instanceof Connect) {
+      connect((Connect) message);
+    } else {
+      handleJobMessage(hiveMessage);
+    }
+
+  }
+
   protected abstract void handleJobMessage(HiveMessage message);
+
   protected abstract boolean isAsync();
+
   protected abstract void cleanUpChildren();
 
   private void keepAlive() {
-    LOG.info("Keep alive for {} sent by {}",self(),sender());
+    LOG.info("Keep alive for {} sent by {}", self(), sender());
     lastActivityTimestamp = System.currentTimeMillis();
-  }
-
-  protected void cleanUp() {
-    cleanUpStatementAndResultSet();
-    LOG.info("Sending poison pill to exception writer");
-    exceptionWriter.tell(PoisonPill.getInstance(), self());
-    inactivityScheduler.cancel();
-    cleanUpChildren();
-    parent.tell(new FreeConnector(username, jobId, isAsync()), self());
   }
 
   protected Optional<String> getJobId() {
     return Optional.fromNullable(jobId);
-  };
+  }
 
   protected Optional<String> getUsername() {
     return Optional.fromNullable(username);
@@ -197,42 +195,70 @@ public abstract class JdbcConnector extends HiveActor {
 
   private void checkTerminationInactivity() {
     if (!isAsync()) {
-      terminateActorScheduler.cancel(); // Will not use times to terminate. Will terminate after the job is finished.
+      // Should not terminate if job is sync. Will terminate after the job is finished.
+      stopTeminateInactivityScheduler();
       return;
     }
     long current = System.currentTimeMillis();
     if ((current - lastActivityTimestamp) > MAX_TERMINATION_INACTIVITY_INTERVAL) {
-      // Stop all sub-actors if any currently live
-      cleanUpStatementAndResultSet();
+      cleanUpWithTermination();
+    }
+  }
 
-      parent.tell(new DestroyConnector(username, jobId, isAsync()), this.self());
+  protected void cleanUp() {
+    cleanUpStatementAndResultSet();
+    LOG.info("Sending poison pill to exception writer");
 
-      self().tell(PoisonPill.getInstance(), ActorRef.noSender());
+    cleanUpChildren();
+    cleanupExceptionWriter();
+    stopInactivityScheduler();
+    parent.tell(new FreeConnector(username, jobId, isAsync()), self());
+  }
+
+  protected void cleanUpWithTermination() {
+    cleanUpStatementAndResultSet();
+
+    cleanUpChildren();
+    cleanupExceptionWriter();
+    stopInactivityScheduler();
+    stopTeminateInactivityScheduler();
+    parent.tell(new DestroyConnector(username, jobId, isAsync()), this.self());
+    self().tell(PoisonPill.getInstance(), ActorRef.noSender());
+  }
+
+  private void cleanupExceptionWriter() {
+    if (!(exceptionWriter == null || exceptionWriter.isTerminated())) {
+      LOG.debug("Sending poison pill to exception writer from: {}", getSelf().path());
+      exceptionWriter.tell(PoisonPill.getInstance(), self());
     }
   }
 
   private void cleanUpStatementAndResultSet() {
-    try {
-      connectionDelegate.closeStatement();
-      connectionDelegate.closeResultSet();
-    } catch (SQLException e) {
-      LOG.error("Failed to clean up statement or resultset", e);
-      exceptionWriter.tell(new ExecutionFailed("Failed to clean up statement or resultset", e), ActorRef.noSender());
+    connectionDelegate.closeStatement();
+    connectionDelegate.closeResultSet();
+  }
+
+  private void stopTeminateInactivityScheduler() {
+    if (!(terminateActorScheduler == null || terminateActorScheduler.isCancelled())) {
+      terminateActorScheduler.cancel();
+    }
+  }
+
+  private void stopInactivityScheduler() {
+    if (!(inactivityScheduler == null || inactivityScheduler.isCancelled())) {
+      inactivityScheduler.cancel();
     }
   }
 
   @Override
   public void postStop() throws Exception {
-    if (!(inactivityScheduler == null || inactivityScheduler.isCancelled())) {
-      inactivityScheduler.cancel();
-    }
-    if (!(terminateActorScheduler == null || terminateActorScheduler.isCancelled())) {
-      terminateActorScheduler.cancel();
-    }
+    stopInactivityScheduler();
+    stopTeminateInactivityScheduler();
 
     if (connectable.isOpen()) {
       connectable.disconnect();
     }
   }
+
 
 }

@@ -100,21 +100,26 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
   }
 
   @Override
-  public boolean closeResultSet() throws SQLException {
-    if (currentResultSet == null) {
-      return false;
+  public void closeResultSet() {
+
+    try {
+      if (currentResultSet != null) {
+        currentResultSet.close();
+      }
+    } catch (SQLException e) {
+      // Cannot do anything here
     }
-    currentResultSet.close();
-    return true;
   }
 
   @Override
-  public boolean closeStatement() throws SQLException {
-    if (currentStatement == null) {
-      return false;
+  public void closeStatement()  {
+    try {
+      if (currentStatement != null) {
+        currentStatement.close();
+      }
+    } catch (SQLException e) {
+      // cannot do anything here
     }
-    currentStatement.close();
-    return true;
   }
 
 

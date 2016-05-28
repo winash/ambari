@@ -17,6 +17,6 @@ public interface ConnectionDelegate {
   Optional<ResultSet> getColumnMetadata(HiveConnection connection, GetColumnMetadataJob job) throws SQLException;
   Optional<ResultSet> getCurrentResultSet();
   Optional<HiveStatement> getCurrentStatement();
-  boolean closeResultSet() throws SQLException;
-  boolean closeStatement() throws SQLException;
+  void closeResultSet();
+  void closeStatement();
 }
