@@ -27,7 +27,7 @@ public class LogAggregator extends HiveActor {
 
   private final Logger LOG = LoggerFactory.getLogger(getClass());
 
-  public static final int AGGREGATION_INTERVAL = 30 * 1000;
+  public static final int AGGREGATION_INTERVAL = 5 * 1000;
   private final HdfsApi hdfsApi;
   private final HiveStatement statement;
   private final String logFile;

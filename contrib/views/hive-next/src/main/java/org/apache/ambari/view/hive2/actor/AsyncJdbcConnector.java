@@ -102,7 +102,8 @@ public class AsyncJdbcConnector extends JdbcConnector {
       // for operations which do not return anything
 
       logAggregator = getContext().actorOf(
-        Props.create(LogAggregator.class, system, hdfsApi, currentStatement.get(), message.getLogFile()), message.getUsername() + ":" + message.getJobId() + "-logAggregator"
+        Props.create(LogAggregator.class, system, hdfsApi, currentStatement.get(), message.getLogFile())
+        .withDispatcher("akka.actor.misc-dispatcher"), message.getUsername() + ":" + message.getJobId() + "-logAggregator"
       );
       deathWatch.tell(new RegisterActor(logAggregator),self());
 
@@ -112,8 +113,9 @@ public class AsyncJdbcConnector extends JdbcConnector {
       if (resultSetOptional.isPresent()) {
         // Start a result set aggregator on the same context, a notice to the parent will kill all these as well
         // tell the result holder to assign the result set for further operations
-        resultSetActor = getContext().actorOf(Props.create(ResultSetIterator.class, self(), resultSetOptional.get(),storage),
-                "ResultSetActor:ResultSetIterator:JobId:"+ jobId+":" + UUID.randomUUID().toString());
+        resultSetActor = getContext().actorOf(Props.create(ResultSetIterator.class, self(),
+          resultSetOptional.get(),storage).withDispatcher("akka.actor.result-dispatcher"),
+          "ResultSetActor:ResultSetIterator:JobId:"+ jobId+":" + UUID.randomUUID().toString());
         deathWatch.tell(new RegisterActor(resultSetActor),self());
         sender().tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>left(resultSetActor)), self());
         parent.tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>left(resultSetActor)), self());
@@ -124,7 +126,8 @@ public class AsyncJdbcConnector extends JdbcConnector {
         // Wait for operation to complete and add results;
 
         ActorRef asyncQueryExecutor = getContext().actorOf(
-                Props.create(AsyncQueryExecutor.class,currentStatement.get(),storage,jobId),
+                Props.create(AsyncQueryExecutor.class,currentStatement.get(),storage,jobId)
+                  .withDispatcher("akka.actor.result-dispatcher"),
                 message.getUsername() + ":" + message.getJobId() + "-asyncQueryExecutor");
         deathWatch.tell(new RegisterActor(asyncQueryExecutor),self());
         sender().tell(new ResultReady(jobId,username, Either.<ActorRef, ActorRef>right(asyncQueryExecutor)), self());

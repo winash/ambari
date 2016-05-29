@@ -127,14 +127,13 @@ public class SyncJdbcConnector extends JdbcConnector {
     try {
       Optional<ResultSet> resultSetOptional = operation.call(connectionOptional.get());
       if(resultSetOptional.isPresent()) {
-        ActorRef resultSetActor = getContext().actorOf(Props.create(ResultSetIterator.class, self(), resultSetOptional.get()));
+        ActorRef resultSetActor = getContext().actorOf(Props.create(ResultSetIterator.class, self(),
+          resultSetOptional.get()).withDispatcher("akka.actor.result-dispatcher"));
         deathWatch.tell(new RegisterActor(resultSetActor),self());
         sender.tell(new ResultSetHolder(resultSetActor), self());
       } else {
         sender.tell(new NoResult(), self());
-        parent.tell(new DestroyConnector(username, jobId, isAsync()), self());
-        // TODO: Do we really need to close disconnect this connection
-        // self().tell(PoisonPill.getInstance(), ActorRef.noSender());
+        cleanUp();
       }
     } catch (SQLException e) {
       LOG.error(operation.executionFailedErrorMessage(), e);

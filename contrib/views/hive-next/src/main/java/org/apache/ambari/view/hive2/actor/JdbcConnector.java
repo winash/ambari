@@ -107,7 +107,9 @@ public abstract class JdbcConnector extends HiveActor {
     this.connectionDelegate = connectionDelegate;
     this.storage = storage;
     this.lastActivityTimestamp = System.currentTimeMillis();
-    exceptionWriter = getContext().actorOf(Props.create(ExceptionWriter.class, hdfsApi, storage), "Exception-Writer-" + viewContext.getUsername() + "-" + viewContext.getInstanceName());
+    exceptionWriter = getContext().actorOf(Props.create(ExceptionWriter.class, hdfsApi, storage)
+      .withDispatcher("akka.actor.misc-dispatcher"),
+      "Exception-Writer-" + viewContext.getUsername() + "-" + viewContext.getInstanceName());
     deathWatch.tell(new RegisterActor(exceptionWriter), self());
     actorConfiguration = new HiveActorConfiguration(viewContext);
   }

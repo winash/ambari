@@ -3,6 +3,8 @@ package org.apache.ambari.view.hive2;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive2.actor.DeathWatch;
 import org.apache.ambari.view.hive2.actor.OperationController;
@@ -10,6 +12,8 @@ import org.apache.ambari.view.hive2.internal.ConnectionSupplier;
 import org.apache.ambari.view.hive2.internal.DataStorageSupplier;
 import org.apache.ambari.view.hive2.internal.HdfsApiSupplier;
 
+import java.io.InputStream;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,6 +21,7 @@ import java.util.concurrent.ConcurrentMap;
 
 public class ConnectionSystem {
 
+  private static final String ACTOR_CONF_FILE = "application.conf";
   private static final String ACTOR_SYSTEM_NAME = "HiveViewActorSystem";
   private ActorSystem actorSystem = null;
   private static volatile ConnectionSystem instance = null;
@@ -24,8 +29,7 @@ public class ConnectionSystem {
   private static Map<String, ActorRef> operationControllerMap = new HashMap<>();
 
   private ConnectionSystem() {
-    actorSystem = ActorSystem.create(ACTOR_SYSTEM_NAME);
-    createOperationController();
+    this.actorSystem = ActorSystem.create(ACTOR_SYSTEM_NAME);;
   }
 
   public static ConnectionSystem getInstance() {
@@ -41,7 +45,9 @@ public class ConnectionSystem {
 
   private ActorRef createOperationController() {
     ActorRef deathWatch = actorSystem.actorOf(Props.create(DeathWatch.class));
-    return actorSystem.actorOf(Props.create(OperationController.class, actorSystem,deathWatch, new ConnectionSupplier(), new DataStorageSupplier(), new HdfsApiSupplier()));
+    return actorSystem.actorOf(
+      Props.create(OperationController.class, actorSystem,deathWatch,
+        new ConnectionSupplier(), new DataStorageSupplier(), new HdfsApiSupplier()));
   }
 
   public ActorSystem getActorSystem() {
