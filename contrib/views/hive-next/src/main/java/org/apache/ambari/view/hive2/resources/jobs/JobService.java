@@ -343,7 +343,7 @@ public class JobService extends BaseService {
   @Path("{jobId}/results")
   @Produces(MediaType.APPLICATION_JSON)
   public Response getResults(@PathParam("jobId") final String jobId,
-                             @QueryParam("first") String fromBeginning,
+                             @QueryParam("first") final String fromBeginning,
                              @QueryParam("count") Integer count,
                              @QueryParam("searchId") String searchId,
                              @QueryParam("format") String format,
@@ -360,7 +360,13 @@ public class JobService extends BaseService {
                       new Callable<Cursor< Row, ColumnDescription >>() {
                         @Override
                         public Cursor call() throws Exception {
-                          Optional<NonPersistentCursor> cursor = asyncJobRunner.getCursor(jobId, username);
+                          Optional<NonPersistentCursor> cursor;
+                          if(fromBeginning != null && fromBeginning.equals("true")){
+                            cursor = asyncJobRunner.resetAndGetCursor(jobId, username);
+                          }
+                          else {
+                            cursor = asyncJobRunner.getCursor(jobId, username);
+                          }
                           if(cursor.isPresent())
                           return cursor.get();
                           else
