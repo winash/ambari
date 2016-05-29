@@ -153,7 +153,7 @@ public class ATSParser implements IATSParser {
       for (Object key : stages.keySet()) {
         JSONObject stage = (JSONObject) stages.get(key);
         if (stage.get("Tez") != null) {
-          String dagId = (String) ((JSONObject) stage.get("Tez")).get("DagName:");
+          String dagId = (String) ((JSONObject) stage.get("Tez")).get("DagId:");
           dagIds.add(dagId);
         }
         stagesList.add(stage);
