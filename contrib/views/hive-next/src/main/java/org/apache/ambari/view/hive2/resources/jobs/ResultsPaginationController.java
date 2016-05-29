@@ -101,6 +101,7 @@ public class ResultsPaginationController {
     }
     Cursor cursor = getResultsCache().get(effectiveKey);
     getResultsCache().put(effectiveKey, cursor);
+    cursor.keepAlive();
     return true;
   }
 

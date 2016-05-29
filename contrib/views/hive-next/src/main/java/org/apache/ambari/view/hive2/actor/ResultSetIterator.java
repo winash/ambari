@@ -74,6 +74,10 @@ public class ResultSetIterator extends HiveActor {
     if (message instanceof ResetCursor) {
       resetResultSet();
     }
+
+    if (message instanceof KeepAlive) {
+      sendKeepAlive();
+    }
     if (message instanceof AdvanceCursor) {
       AdvanceCursor moveCursor = (AdvanceCursor) message;
       String jobid = moveCursor.getJob();

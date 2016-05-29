@@ -11,4 +11,5 @@ public interface Cursor<T, R> extends Iterator<T>, Iterable<T>{
   void reset();
   int getOffset();
   List<R> getDescriptions();
+  void keepAlive();
 }

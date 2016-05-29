@@ -61,4 +61,9 @@ public class PersistentCursor<T, R> implements Cursor<T, R>  {
   public List<R> getDescriptions() {
     return columns;
   }
+
+  @Override
+  public void keepAlive() {
+    // Do Nothing as we are pre-fetching everything.
+  }
 }

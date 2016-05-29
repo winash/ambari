@@ -36,7 +36,12 @@ public class EmptyCursor implements Cursor<Row, ColumnDescription> {
         return desc;
     }
 
-    /**
+  @Override
+  public void keepAlive() {
+    // Do Nothing
+  }
+
+  /**
      * Returns an iterator over a set of elements of type T.
      *
      * @return an Iterator.

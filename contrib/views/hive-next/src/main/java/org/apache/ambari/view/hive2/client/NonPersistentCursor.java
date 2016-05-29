@@ -5,6 +5,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Inbox;
 import com.google.common.collect.Lists;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive2.actor.message.lifecycle.KeepAlive;
 import org.apache.ambari.view.hive2.utils.HiveActorConfiguration;
 import org.apache.ambari.view.hive2.utils.ServiceFormattedException;
 import org.apache.ambari.view.hive2.actor.message.job.FetchFailed;
@@ -64,6 +65,12 @@ public class NonPersistentCursor implements Cursor<Row, ColumnDescription> {
   public List<ColumnDescription> getDescriptions() {
     fetchIfNeeded();
     return descriptions;
+  }
+
+  @Override
+  public void keepAlive() {
+    Inbox inbox = Inbox.create(system);
+    inbox.send(actorRef, new KeepAlive());
   }
 
   @Override
