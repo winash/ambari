@@ -5,7 +5,9 @@ import akka.actor.ActorSystem;
 import akka.actor.Inbox;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive2.actor.message.CursorReset;
 import org.apache.ambari.view.hive2.actor.message.JobRejected;
+import org.apache.ambari.view.hive2.actor.message.ResetCursor;
 import org.apache.ambari.view.hive2.exceptions.NotConnectedException;
 import org.apache.ambari.view.hive2.resources.jobs.viewJobs.Job;
 import org.apache.ambari.view.hive2.actor.message.AdvanceCursor;
@@ -105,6 +107,30 @@ public class AsyncJobRunnerImpl implements AsyncJobRunner {
 
         } else if (result.isLeft()){
             return Optional.of(new NonPersistentCursor(system, result.getLeft()));
+        }
+
+        return Optional.absent();
+    }
+
+    @Override
+    public Optional<NonPersistentCursor> resetAndGetCursor(String jobId, String username) {
+        Inbox inbox = Inbox.create(system);
+        inbox.send(controller, new FetchResult(jobId,username));
+        Object receive = inbox.receive(Duration.create(1, TimeUnit.MINUTES));
+        Either<ActorRef, ActorRef> result = (Either<ActorRef, ActorRef>) receive;
+        if(result.isRight()){
+            return Optional.absent();
+
+        } else if (result.isLeft()){
+            // Reset the result set cursor
+            inbox.send(result.getLeft(),new ResetCursor());
+            Object resetResult = inbox.receive(Duration.create(1, TimeUnit.MINUTES));
+            if(resetResult instanceof CursorReset){
+               return Optional.of(new NonPersistentCursor(system, result.getLeft()));
+            } else {
+                return Optional.absent();
+            }
+
         }
 
         return Optional.absent();

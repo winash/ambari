@@ -12,4 +12,6 @@ public interface AsyncJobRunner {
     Either<AsyncExecutionSuccess, AsyncExecutionFailed> submitJob(ConnectionConfig connectionConfig, AsyncJob asyncJob, Job job);
 
     Optional<NonPersistentCursor> getCursor(String jobId, String username);
+
+    Optional<NonPersistentCursor> resetAndGetCursor(String jobId, String username);
 }

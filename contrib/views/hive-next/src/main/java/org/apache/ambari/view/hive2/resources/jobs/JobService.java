@@ -18,9 +18,11 @@
 
 package org.apache.ambari.view.hive2.resources.jobs;
 
+import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Optional;
 import org.apache.ambari.view.ViewResourceHandler;
 import org.apache.ambari.view.hive2.BaseService;
+import org.apache.ambari.view.hive2.backgroundjobs.BackgroundJobController;
 import org.apache.ambari.view.hive2.client.AsyncJobRunner;
 import org.apache.ambari.view.hive2.client.AsyncJobRunnerImpl;
 import org.apache.ambari.view.hive2.client.ColumnDescription;
@@ -37,11 +39,15 @@ import org.apache.ambari.view.hive2.resources.jobs.viewJobs.Job;
 import org.apache.ambari.view.hive2.resources.jobs.viewJobs.JobController;
 import org.apache.ambari.view.hive2.resources.jobs.viewJobs.JobImpl;
 import org.apache.ambari.view.hive2.resources.jobs.viewJobs.JobResourceManager;
+import org.apache.ambari.view.hive2.utils.MisconfigurationFormattedException;
 import org.apache.ambari.view.hive2.utils.NotFoundFormattedException;
 import org.apache.ambari.view.hive2.utils.ServiceFormattedException;
 import org.apache.ambari.view.hive2.utils.SharedObjectsFactory;
 import org.apache.ambari.view.hive2.ConnectionSystem;
 import org.apache.commons.beanutils.PropertyUtils;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +66,13 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
@@ -166,9 +178,20 @@ public class JobService extends BaseService {
                                 @QueryParam("fileName") String fileName,
                                 @QueryParam("columns") final String requestedColumns) {
     try {
-      /*JobController jobController = getResourceManager().readController(jobId);
-      final Cursor resultSet = jobController.getResults();
-      resultSet.selectColumns(requestedColumns);
+
+      final String username = context.getUsername();
+
+      ConnectionSystem system = ConnectionSystem.getInstance();
+      final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem());
+
+      Optional<NonPersistentCursor> cursorOptional = asyncJobRunner.resetAndGetCursor(jobId, username);
+
+      if(!cursorOptional.isPresent()){
+        throw new Exception("Download failed");
+      }
+
+      final NonPersistentCursor resultSet = cursorOptional.get();
+
 
       StreamingOutput stream = new StreamingOutput() {
         @Override
@@ -177,11 +200,13 @@ public class JobService extends BaseService {
           CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT);
           try {
 
-            try {
-              csvPrinter.printRecord(resultSet.getHeadersRow().getRow());
-            } catch (HiveClientException e) {
-              LOG.error("Error on reading results header", e);
+            List<ColumnDescription> descriptions = resultSet.getDescriptions();
+            List<String> headers = Lists.newArrayList();
+            for (ColumnDescription description : descriptions) {
+              headers.add(description.getName());
             }
+
+            csvPrinter.printRecord(headers.toArray());
 
             while (resultSet.hasNext()) {
               csvPrinter.printRecord(resultSet.next().getRow());
@@ -199,15 +224,12 @@ public class JobService extends BaseService {
 
       return Response.ok(stream).
           header("Content-Disposition", String.format("attachment; filename=\"%s\"", fileName)).
-          build();*/
-      return null;
+          build();
 
-      //TODO: New implementation
+
     } catch (WebApplicationException ex) {
       throw ex;
-    } /*catch (ItemNotFound itemNotFound) {
-      throw new NotFoundFormattedException(itemNotFound.getMessage(), itemNotFound);
-    }*/ catch (Exception ex) {
+    }  catch (Throwable ex) {
       throw new ServiceFormattedException(ex.getMessage(), ex);
     }
   }
@@ -224,9 +246,22 @@ public class JobService extends BaseService {
                                    @QueryParam("stop") final String stop,
                                    @QueryParam("columns") final String requestedColumns,
                                    @Context HttpServletResponse response) {
-    /*try {
+    try {
 
       final JobController jobController = getResourceManager().readController(jobId);
+      final String username = context.getUsername();
+
+      ConnectionSystem system = ConnectionSystem.getInstance();
+      final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem());
+
+      Optional<NonPersistentCursor> cursorOptional = asyncJobRunner.resetAndGetCursor(jobId, username);
+
+      if(!cursorOptional.isPresent()){
+        throw new Exception("Download failed");
+      }
+
+      final NonPersistentCursor resultSet = cursorOptional.get();
+
 
       String backgroundJobId = "csv" + String.valueOf(jobController.getJob().getId());
       if (commence != null && commence.equals("true")) {
@@ -237,8 +272,6 @@ public class JobService extends BaseService {
           public void run() {
 
             try {
-              Cursor resultSet = jobController.getResults();
-              resultSet.selectColumns(requestedColumns);
 
               FSDataOutputStream stream = getSharedObjectsFactory().getHdfsApi().create(targetFile, true);
               Writer writer = new BufferedWriter(new OutputStreamWriter(stream));
@@ -257,10 +290,7 @@ public class JobService extends BaseService {
               throw new ServiceFormattedException("F010 Could not write CSV to HDFS for job#" + jobController.getJob().getId(), e);
             } catch (InterruptedException e) {
               throw new ServiceFormattedException("F010 Could not write CSV to HDFS for job#" + jobController.getJob().getId(), e);
-            } catch (ItemNotFound itemNotFound) {
-              throw new NotFoundFormattedException("E020 ExecuteJob results are expired", itemNotFound);
             }
-
           }
         });
       }
@@ -283,10 +313,7 @@ public class JobService extends BaseService {
       throw new NotFoundFormattedException(itemNotFound.getMessage(), itemNotFound);
     } catch (Exception ex) {
       throw new ServiceFormattedException(ex.getMessage(), ex);
-    }*/
-      return null;
-
-    //TODO: New implementation
+    }
   }
 
 
@@ -322,7 +349,6 @@ public class JobService extends BaseService {
                              @QueryParam("format") String format,
                              @QueryParam("columns") final String requestedColumns) {
     try {
-      final JobController jobController = getResourceManager().readController(jobId);
 
       final String username = context.getUsername();
 
@@ -342,20 +368,8 @@ public class JobService extends BaseService {
                         }
                       }).build();
 
-
-      /*LOG.info("jobController.getStatus().status : " + jobController.getStatus().status + " for job : " + jobController.getJob().getId());
-      if(jobController.getStatus().status.equals(ExecuteJob.JOB_STATE_INITIALIZED)
-         || jobController.getStatus().status.equals(ExecuteJob.JOB_STATE_PENDING)
-         || jobController.getStatus().status.equals(ExecuteJob.JOB_STATE_RUNNING)
-         || jobController.getStatus().status.equals(ExecuteJob.JOB_STATE_UNKNOWN)){
-
-         return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Retry-After","1").build();
-      }*/
-      //TODO: New implementation
     } catch (WebApplicationException ex) {
       throw ex;
-    } catch (ItemNotFound itemNotFound) {
-      throw new NotFoundFormattedException(itemNotFound.getMessage(), itemNotFound);
     } catch (Exception ex) {
       throw new ServiceFormattedException(ex.getMessage(), ex);
     }

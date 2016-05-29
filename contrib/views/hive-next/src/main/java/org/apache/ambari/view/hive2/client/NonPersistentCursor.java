@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class NonPersistentCursor implements Cursor<Row, ColumnDescription> {
   private final Logger LOG = LoggerFactory.getLogger(getClass());
-  private static long DEFAULT_WAIT_TIMEOUT = 5000L;
+  private static long DEFAULT_WAIT_TIMEOUT = 60000L;
 
   private final ActorSystem system;
   private final ActorRef actorRef;

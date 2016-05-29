@@ -2,6 +2,8 @@ package org.apache.ambari.view.hive2.actor;
 
 import akka.actor.ActorRef;
 import com.google.common.collect.Lists;
+import org.apache.ambari.view.hive2.actor.message.CursorReset;
+import org.apache.ambari.view.hive2.actor.message.ResetCursor;
 import org.apache.ambari.view.hive2.client.ColumnDescription;
 import org.apache.ambari.view.hive2.client.ColumnDescriptionShort;
 import org.apache.ambari.view.hive2.client.Row;
@@ -69,6 +71,9 @@ public class ResultSetIterator extends HiveActor {
     if (message instanceof Next) {
       getNext();
     }
+    if (message instanceof ResetCursor) {
+      resetResultSet();
+    }
     if (message instanceof AdvanceCursor) {
       AdvanceCursor moveCursor = (AdvanceCursor) message;
       String jobid = moveCursor.getJob();
@@ -83,6 +88,17 @@ public class ResultSetIterator extends HiveActor {
       }
     }
 
+  }
+
+  private void resetResultSet() {
+    try {
+      resultSet.beforeFirst();
+      sender().tell(new CursorReset(), self());
+    } catch (SQLException e) {
+      LOG.error("Failed to reset the cursor", e);
+      sender().tell(new FetchFailed("Failed to reset the cursor", e), self());
+      cleanUpResources();
+    }
   }
 
   private void sendKeepAlive() {

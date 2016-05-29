@@ -24,10 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class BackgroundJobController {
-  private ViewContext context;
 
   protected BackgroundJobController(ViewContext context) {
-    this.context = context;
   }
 
   private static Map<String, BackgroundJobController> viewSingletonObjects = new HashMap<String, BackgroundJobController>();

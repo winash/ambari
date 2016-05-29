@@ -138,10 +138,8 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
     }
 
     private String[] getStatements(String jobDatabase, String query) {
-        String[] split = query.split("\\r?\\n");
-        String[] strings = {"use " + jobDatabase};
-        String[] both = (String[])ArrayUtils.addAll(strings,split);
-        return both;
+        String[] strings = {"use " + jobDatabase,query};
+        return strings;
     }
 
     private void setupHiveBeforeQueryExecute() {

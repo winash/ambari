@@ -28,7 +28,7 @@ public class DDLJob extends HiveJob {
 
   private String clean(String statement) {
     String replaced = statement.replace(SEMICOLON, "");
-    return StringUtils.chomp(replaced);
+    return StringUtils.trim(replaced);
   }
 
   public Collection<String> getStatements() {
