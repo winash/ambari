@@ -4,6 +4,7 @@ import com.google.common.base.Optional;
 import org.apache.ambari.view.hive2.actor.message.DDLJob;
 import org.apache.ambari.view.hive2.actor.message.GetColumnMetadataJob;
 import org.apache.ambari.view.hive2.actor.message.HiveJob;
+import org.apache.ambari.view.hive2.actor.message.job.Result;
 import org.apache.ambari.view.hive2.internal.HiveResult;
 import org.apache.hive.jdbc.HiveConnection;
 import org.apache.hive.jdbc.HiveStatement;
@@ -23,7 +24,7 @@ public class HiveJdbcConnectionDelegate implements ConnectionDelegate {
   public Optional<ResultSet> execute(HiveConnection connection, DDLJob job) throws SQLException {
 
     try {
-      Statement statement = connection.createStatement();
+      Statement statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,ResultSet.CONCUR_READ_ONLY);
       currentStatement = (HiveStatement) statement;
 
       for (String syncStatement : job.getSyncStatements()) {

@@ -251,22 +251,22 @@ public class JobService extends BaseService {
       final JobController jobController = getResourceManager().readController(jobId);
       final String username = context.getUsername();
 
-      ConnectionSystem system = ConnectionSystem.getInstance();
-      final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem());
-
-      Optional<NonPersistentCursor> cursorOptional = asyncJobRunner.resetAndGetCursor(jobId, username);
-
-      if(!cursorOptional.isPresent()){
-        throw new Exception("Download failed");
-      }
-
-      final NonPersistentCursor resultSet = cursorOptional.get();
-
-
       String backgroundJobId = "csv" + String.valueOf(jobController.getJob().getId());
       if (commence != null && commence.equals("true")) {
         if (targetFile == null)
           throw new MisconfigurationFormattedException("targetFile should not be empty");
+
+        ConnectionSystem system = ConnectionSystem.getInstance();
+        final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem());
+
+        Optional<NonPersistentCursor> cursorOptional = asyncJobRunner.resetAndGetCursor(jobId, username);
+
+        if(!cursorOptional.isPresent()){
+          throw new Exception("Download failed");
+        }
+
+        final NonPersistentCursor resultSet = cursorOptional.get();
+
         BackgroundJobController.getInstance(context).startJob(String.valueOf(backgroundJobId), new Runnable() {
           @Override
           public void run() {

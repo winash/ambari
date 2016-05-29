@@ -135,7 +135,6 @@ public class ResultSetIterator extends HiveActor {
       if (index == 0) {
         // We have hit end of resultSet
         sender().tell(new NoMoreItems(), self());
-        cleanUpResources();
       } else {
         Result result = new Result(rows, columnDescriptions);
         lastResult = result;
