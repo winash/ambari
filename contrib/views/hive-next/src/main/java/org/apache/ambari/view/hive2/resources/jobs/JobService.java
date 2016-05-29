@@ -323,9 +323,9 @@ public class JobService extends BaseService {
   @Produces(MediaType.APPLICATION_JSON)
   public Response fetchJobStatus(@PathParam("jobId") String jobId) throws ItemNotFound, HiveClientException, NoOperationStatusSetException {
     JobController jobController = getResourceManager().readController(jobId);
-    //String jobStatus = jobController.getStatus().status;
-    String jobStatus = "";
-    //TODO: New implementation
+    Job job = jobController.getJob();
+    String jobStatus = job.getStatus();
+
 
     LOG.info("jobStatus : {} for jobId : {}",jobStatus, jobId);
 

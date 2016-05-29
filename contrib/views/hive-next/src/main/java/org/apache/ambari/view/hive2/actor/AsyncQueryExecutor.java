@@ -2,6 +2,7 @@ package org.apache.ambari.view.hive2.actor;
 
 import org.apache.ambari.view.hive2.actor.message.ExecuteQuery;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
+import org.apache.ambari.view.hive2.actor.message.job.AsyncExecutionFailed;
 import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
 import org.apache.ambari.view.hive2.internal.AsyncExecutionSuccess;
 import org.apache.ambari.view.hive2.persistence.Storage;
@@ -19,7 +20,7 @@ public class AsyncQueryExecutor extends HiveActor {
     private final Storage storage;
     private final String jobId;
 
-    public AsyncQueryExecutor(Statement statement, Storage storage,String jobId) {
+    public AsyncQueryExecutor(Statement statement, Storage storage, String jobId) {
         this.statement = statement;
         this.storage = storage;
         this.jobId = jobId;
@@ -30,29 +31,31 @@ public class AsyncQueryExecutor extends HiveActor {
         Object message = hiveMessage.getMessage();
 
         if (message instanceof ExecuteQuery) {
-                executeQuery();
-            }
+            executeQuery();
+        }
 
     }
 
-    private void executeQuery()  {
+    private void executeQuery() {
+        JobImpl job = null;
         try {
+            job = storage.load(JobImpl.class, jobId);
             statement.getUpdateCount();
-            try {
-                JobImpl job = storage.load(JobImpl.class, jobId);
-                job.setStatus(Job.JOB_STATE_FINISHED);
-                storage.store(JobImpl.class, job);
-            } catch (ItemNotFound itemNotFound) {
-                //TODO: Handle error
-            }
+            job.setStatus(Job.JOB_STATE_FINISHED);
+            storage.store(JobImpl.class, job);
             sender().tell(new AsyncExecutionSuccess(),self());
-            //TODO: Close statement and actor
         } catch (SQLException e) {
-            sender().tell(new ExecutionFailed("Cannot execute query",e),self());
+            job.setStatus(Job.JOB_STATE_ERROR);
+            sender().tell(new AsyncExecutionFailed(jobId, e.getMessage(), e), self());
+            storage.store(JobImpl.class, job);
+        } catch (ItemNotFound itemNotFound) {
+            sender().tell(new AsyncExecutionFailed(jobId, "Cannot load job", itemNotFound), self());
         }
-
 
     }
 
 
 }
+
+
+
