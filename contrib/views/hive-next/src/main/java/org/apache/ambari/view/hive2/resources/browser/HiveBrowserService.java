@@ -74,7 +74,7 @@ public class HiveBrowserService {
     else
       like = "*" + like + "*";
     JSONObject response = new JSONObject();
-    DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
+    DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController(context));
     List<String> databases = delegator.getDbList(getHiveConnectionConfig(), like);
     response.put("databases", databases);
     return Response.ok(response).build();
@@ -100,7 +100,7 @@ public class HiveBrowserService {
     String curl = null;
     try {
       final String finalLike = like;
-      final DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
+      final DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController(context));
       return ResultsPaginationController.getInstance(context)
           .request("databases", searchId, false, fromBeginning, count, format, requestedColumns,
             new Callable<Cursor<Row, ColumnDescription>>() {
@@ -135,7 +135,7 @@ public class HiveBrowserService {
       like = "*" + like + "*";
 
     JSONObject response = new JSONObject();
-    DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
+    DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController(context));
     List<String> tables = delegator.getTableList(getHiveConnectionConfig(), db, like);
     response.put("tables", tables);
     response.put("database", db);
@@ -163,7 +163,7 @@ public class HiveBrowserService {
     String curl = null;
     try {
       final String finalLike = like;
-      final DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
+      final DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController(context));
       try {
         return ResultsPaginationController.getInstance(context)
           .request(db + ":tables:", searchId, false, fromBeginning, count, format, requestedColumns,
@@ -201,7 +201,7 @@ public class HiveBrowserService {
     String curl = null;
     try {
       JSONObject response = new JSONObject();
-      DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
+      DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController(context));
       List<ColumnDescription> descriptions = delegator.getTableDescription(getHiveConnectionConfig(), db, table, "%", extendedTableDescription);
       response.put("columns", descriptions);
       response.put("database", db);
@@ -239,7 +239,7 @@ public class HiveBrowserService {
       like = ".*" + like + ".*";
     final String finalLike = like;
 
-    final DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController());
+    final DDLDelegator delegator = new DDLDelegatorImpl(context, ConnectionSystem.getInstance().getActorSystem(), ConnectionSystem.getInstance().getOperationController(context));
     try {
       return ResultsPaginationController.getInstance(context)
         .request(db + ":tables:" + table + ":columns", searchId, false, fromBeginning, count, format, requestedColumns,

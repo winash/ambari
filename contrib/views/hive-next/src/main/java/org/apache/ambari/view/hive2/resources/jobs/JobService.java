@@ -182,7 +182,7 @@ public class JobService extends BaseService {
       final String username = context.getUsername();
 
       ConnectionSystem system = ConnectionSystem.getInstance();
-      final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem());
+      final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(context, system.getOperationController(context), system.getActorSystem());
 
       Optional<NonPersistentCursor> cursorOptional = asyncJobRunner.resetAndGetCursor(jobId, username);
 
@@ -257,7 +257,7 @@ public class JobService extends BaseService {
           throw new MisconfigurationFormattedException("targetFile should not be empty");
 
         ConnectionSystem system = ConnectionSystem.getInstance();
-        final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem());
+        final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(context, system.getOperationController(context), system.getActorSystem());
 
         Optional<NonPersistentCursor> cursorOptional = asyncJobRunner.resetAndGetCursor(jobId, username);
 
@@ -353,7 +353,7 @@ public class JobService extends BaseService {
       final String username = context.getUsername();
 
       ConnectionSystem system = ConnectionSystem.getInstance();
-      final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(system.getOperationController(), system.getActorSystem());
+      final AsyncJobRunner asyncJobRunner = new AsyncJobRunnerImpl(context, system.getOperationController(context), system.getActorSystem());
 
       return ResultsPaginationController.getInstance(context)
               .request(jobId, searchId, true, fromBeginning, count, format,requestedColumns,

@@ -10,6 +10,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive2.utils.HiveActorConfiguration;
 import org.apache.ambari.view.hive2.utils.ServiceFormattedException;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.ExecuteJob;
@@ -42,12 +43,14 @@ public class DDLDelegatorImpl implements DDLDelegator {
   private final ActorRef controller;
   private final ActorSystem system;
 
-  private ViewContext context;
+  private final ViewContext context;
+  private final HiveActorConfiguration actorConfiguration;
 
   public DDLDelegatorImpl(ViewContext context, ActorSystem system, ActorRef controller) {
     this.context = context;
     this.system = system;
     this.controller = controller;
+    actorConfiguration = new HiveActorConfiguration(context);
   }
 
   @Override
@@ -151,7 +154,7 @@ public class DDLDelegatorImpl implements DDLDelegator {
     inbox.send(controller, job);
     Object submitResult;
     try {
-      submitResult = inbox.receive(Duration.create(2, TimeUnit.MINUTES));
+      submitResult = inbox.receive(Duration.create(actorConfiguration.getSyncQueryTimeout(60 * 1000), TimeUnit.MILLISECONDS));
     } catch (Throwable ex) {
       String errorMessage = "Query timed out to fetch table description for user: " + job.getConnect().getUsername();
       LOG.error(errorMessage, ex);
@@ -176,7 +179,7 @@ public class DDLDelegatorImpl implements DDLDelegator {
         inbox.send(iterator, new Next());
         Object receive;
         try {
-          receive = inbox.receive(Duration.create(1, TimeUnit.MINUTES));
+          receive = inbox.receive(Duration.create(actorConfiguration.getResultFetchTimeout(60 * 1000), TimeUnit.MILLISECONDS));
         } catch (Throwable ex) {
           String errorMessage = "Query timed out to fetch results for user: " + job.getConnect().getUsername();
           LOG.error(errorMessage, ex);

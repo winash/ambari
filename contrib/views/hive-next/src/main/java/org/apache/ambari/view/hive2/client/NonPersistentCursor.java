@@ -4,6 +4,8 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Inbox;
 import com.google.common.collect.Lists;
+import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.hive2.utils.HiveActorConfiguration;
 import org.apache.ambari.view.hive2.utils.ServiceFormattedException;
 import org.apache.ambari.view.hive2.actor.message.job.FetchFailed;
 import org.apache.ambari.view.hive2.actor.message.job.Next;
@@ -24,24 +26,23 @@ import java.util.concurrent.TimeUnit;
  */
 public class NonPersistentCursor implements Cursor<Row, ColumnDescription> {
   private final Logger LOG = LoggerFactory.getLogger(getClass());
-  private static long DEFAULT_WAIT_TIMEOUT = 60000L;
+  private static long DEFAULT_WAIT_TIMEOUT = 60 * 1000L;
 
   private final ActorSystem system;
   private final ActorRef actorRef;
-  private final long readTimeOut;
+  private final ViewContext context;
+  private final HiveActorConfiguration actorConfiguration;
   private final Queue<Row> rows = Lists.newLinkedList();
   private final List<ColumnDescription> descriptions = Lists.newLinkedList();
   private int offSet = 0;
   private boolean endReached = false;
 
-  public NonPersistentCursor(ActorSystem system, ActorRef actorRef, long readTimeOut) {
+
+  public NonPersistentCursor(ViewContext context, ActorSystem system, ActorRef actorRef) {
+    this.context = context;
     this.system = system;
     this.actorRef = actorRef;
-    this.readTimeOut = readTimeOut;
-  }
-
-  public NonPersistentCursor(ActorSystem system, ActorRef actorRef) {
-    this(system, actorRef, DEFAULT_WAIT_TIMEOUT);
+    actorConfiguration = new HiveActorConfiguration(context);
   }
 
   @Override
@@ -98,7 +99,8 @@ public class NonPersistentCursor implements Cursor<Row, ColumnDescription> {
     inbox.send(actorRef, new Next());
     Object receive;
     try {
-      receive = inbox.receive(Duration.create(readTimeOut, TimeUnit.MILLISECONDS));
+      receive = inbox.receive(Duration.create(actorConfiguration.getResultFetchTimeout(DEFAULT_WAIT_TIMEOUT),
+        TimeUnit.MILLISECONDS));
     } catch (Throwable ex) {
       String errorMessage = "Result fetch timed out";
       LOG.error(errorMessage, ex);

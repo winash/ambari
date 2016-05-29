@@ -23,6 +23,7 @@ import org.apache.ambari.view.hive2.internal.ConnectionException;
 import org.apache.ambari.view.hive2.persistence.Storage;
 import org.apache.ambari.view.hive2.persistence.utils.ItemNotFound;
 import org.apache.ambari.view.hive2.resources.jobs.viewJobs.JobImpl;
+import org.apache.ambari.view.hive2.utils.HiveActorConfiguration;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.hive.jdbc.HiveStatement;
 import org.slf4j.Logger;
@@ -43,7 +44,7 @@ public abstract class JdbcConnector extends HiveActor {
   /**
    * Interval for maximum inactivity allowed
    */
-  private final static long MAX_INACTIVITY_INTERVAL = 3 * 60 * 1000;
+  private final static long MAX_INACTIVITY_INTERVAL = 5 * 60 * 1000;
 
   /**
    * Interval for maximum inactivity allowed before termination
@@ -88,6 +89,11 @@ public abstract class JdbcConnector extends HiveActor {
    * true if the currently executing job is async job.
    */
   private boolean async = true;
+
+  /**
+   * Returns the timeout configurations.
+   */
+  private final HiveActorConfiguration actorConfiguration;
   protected String username;
   protected String jobId;
 
@@ -103,6 +109,7 @@ public abstract class JdbcConnector extends HiveActor {
     this.lastActivityTimestamp = System.currentTimeMillis();
     exceptionWriter = getContext().actorOf(Props.create(ExceptionWriter.class, hdfsApi, storage), "Exception-Writer-" + viewContext.getUsername() + "-" + viewContext.getInstanceName());
     deathWatch.tell(new RegisterActor(exceptionWriter), self());
+    actorConfiguration = new HiveActorConfiguration(viewContext);
   }
 
   @Override
@@ -186,8 +193,7 @@ public abstract class JdbcConnector extends HiveActor {
   private void checkInactivity() {
     LOG.info("Inactivity check");
     long current = System.currentTimeMillis();
-    long l = current - lastActivityTimestamp;
-    if (l > MAX_INACTIVITY_INTERVAL) {
+    if ((current - lastActivityTimestamp) > actorConfiguration.getInactivityTimeout(MAX_INACTIVITY_INTERVAL)) {
       // Stop all the sub-actors created
       cleanUp();
     }
@@ -200,7 +206,7 @@ public abstract class JdbcConnector extends HiveActor {
       return;
     }
     long current = System.currentTimeMillis();
-    if ((current - lastActivityTimestamp) > MAX_TERMINATION_INACTIVITY_INTERVAL) {
+    if ((current - lastActivityTimestamp) > actorConfiguration.getTerminationTimeout(MAX_TERMINATION_INACTIVITY_INTERVAL)) {
       cleanUpWithTermination();
     }
   }
