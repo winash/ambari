@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -47,7 +47,7 @@ import java.util.Set;
  *    *Meaning*: executed outside of HS2
  *    - ExecuteJob info only from ATS
  * 2) ATS ExecuteJob with operationId
-  *    a) Hive View ExecuteJob with same operationId is not present
+ *    a) Hive View ExecuteJob with same operationId is not present
  *        *Meaning*: executed with HS2
  *      - ExecuteJob info only from ATS
  *    b) Hive View ExecuteJob with operationId is present (need to merge)
@@ -60,7 +60,7 @@ import java.util.Set;
  */
 public class Aggregator {
   protected final static Logger LOG =
-      LoggerFactory.getLogger(Aggregator.class);
+    LoggerFactory.getLogger(Aggregator.class);
 
   private final IATSParser ats;
   private final IOperationHandleResourceManager operationHandleResourceManager;
@@ -75,7 +75,7 @@ public class Aggregator {
   }
 
   public List<Job> readAll(String username) {
-      Set<String> addedOperationIds = new HashSet<String>();
+    Set<String> addedOperationIds = new HashSet<String>();
 
     List<Job> allJobs = new LinkedList<Job>();
     for (HiveQueryId atsHiveQuery : ats.getHiveQueryIdsList(username)) {
@@ -122,7 +122,7 @@ public class Aggregator {
 
   public Job readATSJob(Job viewJob) throws ItemNotFound {
 
-    if(viewJob.getStatus().equals(Job.JOB_STATE_INITIALIZED) || viewJob.getStatus().equals(Job.JOB_STATE_UNKNOWN))
+    if (viewJob.getStatus().equals(Job.JOB_STATE_INITIALIZED) || viewJob.getStatus().equals(Job.JOB_STATE_UNKNOWN))
       return viewJob;
 
     String hexGuid = viewJob.getGuid();
@@ -158,13 +158,13 @@ public class Aggregator {
     JobImpl atsJob;
     try {
       atsJob = new JobImpl(PropertyUtils.describe(viewJob));
-    }catch(IllegalAccessException e){
+    } catch (IllegalAccessException e) {
       LOG.error("Can't instantiate JobImpl", e);
       return null;
-    }catch(InvocationTargetException e){
+    } catch (InvocationTargetException e) {
       LOG.error("Can't instantiate JobImpl", e);
       return null;
-    }catch(NoSuchMethodException e){
+    } catch (NoSuchMethodException e) {
       LOG.error("Can't instantiate JobImpl", e);
       return null;
     }
@@ -180,10 +180,14 @@ public class Aggregator {
       }
     }
     if (tezDagId.status != null && (tezDagId.status.compareToIgnoreCase(Job.JOB_STATE_UNKNOWN) != 0) &&
-        !viewJob.getStatus().equals(tezDagId.status)) {
+      !viewJob.getStatus().equalsIgnoreCase(tezDagId.status)) {
       viewJob.setDagId(tezDagId.entity);
       viewJob.setApplicationId(tezDagId.applicationId);
-      viewJob.setStatus(tezDagId.status);
+      if (!(viewJob.getStatus().equalsIgnoreCase(Job.JOB_STATE_FINISHED)
+        || (viewJob.getStatus().equalsIgnoreCase(Job.JOB_STATE_ERROR))
+        || viewJob.getStatus().equalsIgnoreCase(Job.JOB_STATE_CANCELED))) {
+        viewJob.setStatus(tezDagId.status);
+      }
       viewJobResourceManager.update(viewJob, viewJob.getId());
     }
   }
@@ -194,7 +198,7 @@ public class Aggregator {
     fillAtsJobFields(atsJob, atsHiveQuery, atsTezDag);
 
     String query = atsHiveQuery.query;
-    atsJob.setTitle(query.substring(0, (query.length() > 42)?42:query.length()));
+    atsJob.setTitle(query.substring(0, (query.length() > 42) ? 42 : query.length()));
 
     atsJob.setQueryFile(FileService.JSON_PATH_FILE + atsHiveQuery.url + "#otherinfo.QUERY!queryText");
     return atsJob;
@@ -234,21 +238,21 @@ public class Aggregator {
     return viewJobResourceManager.read(operationHandles.get(0).getJobId());
   }
 
-  protected static String urlSafeBase64ToHexString(String urlsafeBase64){
+  protected static String urlSafeBase64ToHexString(String urlsafeBase64) {
     byte[] decoded = Base64.decodeBase64(urlsafeBase64);
 
     StringBuilder sb = new StringBuilder();
-    for(byte b : decoded){
+    for (byte b : decoded) {
       sb.append(String.format("%02x", b));
     }
     return sb.toString();
   }
 
-  protected static String hexStringToUrlSafeBase64(String hexString){
+  protected static String hexStringToUrlSafeBase64(String hexString) {
     byte[] decoded = new byte[hexString.length() / 2];
 
-    for(int i=0; i<hexString.length(); i+=2) {
-       decoded[i / 2] = (byte) Integer.parseInt(String.format("%c%c", hexString.charAt(i), hexString.charAt(i+1)), 16);
+    for (int i = 0; i < hexString.length(); i += 2) {
+      decoded[i / 2] = (byte) Integer.parseInt(String.format("%c%c", hexString.charAt(i), hexString.charAt(i + 1)), 16);
     }
     return Base64.encodeBase64URLSafeString(decoded);
   }

@@ -15,9 +15,9 @@
    limitations under the License.
 -->
 <view>
-    <name>HIVE-NEXT</name>
-    <label>Hive-Next</label>
-    <version>1.0.0</version>
+    <name>HIVE</name>
+    <label>Hive</label>
+    <version>2.0.0</version>
     <build>${env.BUILD_NUMBER}</build>
 
     <min-ambari-version>2.0.*</min-ambari-version>
@@ -288,7 +288,7 @@
 
     <auto-instance>
         <name>AUTO_HIVE_INSTANCE</name>
-        <label>Hive Next View</label>
+        <label>Hive View</label>
         <description>This view instance is auto created when the Hive service is added to a cluster.</description>
         <stack-id>HDP-2.*</stack-id>
         <services>

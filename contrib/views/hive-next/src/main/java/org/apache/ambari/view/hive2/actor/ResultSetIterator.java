@@ -94,16 +94,23 @@ public class ResultSetIterator extends HiveActor {
       // Resetting the resultset as it needs to fetch from the beginning when the result is asked for.
       resultSet.beforeFirst();
       LOG.info("Job execution successful. Setting status in db.");
-      JobImpl job = storage.load(JobImpl.class, jobid);
-      job.setStatus(Job.JOB_STATE_FINISHED);
-      storage.store(JobImpl.class, job);
+      updateJobStatus(jobid, Job.JOB_STATE_FINISHED);
       sendJobCompleteMessageIfNotDone();
-    } catch (ItemNotFound itemNotFound) {
-      //TODO: Handle error
     } catch (SQLException e) {
-      LOG.error("Failed to reset the cursor after advancing", e);
+      LOG.error("Failed to reset the cursor after advancing. Setting error state in db.", e);
+      updateJobStatus(jobid, Job.JOB_STATE_ERROR);
       sender().tell(new FetchFailed("Failed to reset the cursor after advancing", e), self());
       cleanUpResources();
+    }
+  }
+
+  private void updateJobStatus(String jobid, String status) {
+    try {
+      JobImpl job = storage.load(JobImpl.class, jobid);
+      job.setStatus(status);
+      storage.store(JobImpl.class, job);
+    } catch (ItemNotFound itemNotFound) {
+      // Cannot do anything
     }
   }
 

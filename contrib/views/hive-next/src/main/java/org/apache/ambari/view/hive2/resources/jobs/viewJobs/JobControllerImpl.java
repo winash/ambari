@@ -42,13 +42,16 @@ import org.apache.ambari.view.hive2.internal.Either;
 import org.apache.ambari.view.utils.hdfs.HdfsApi;
 import org.apache.ambari.view.utils.hdfs.HdfsApiException;
 import org.apache.ambari.view.utils.hdfs.HdfsUtil;
+import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 public class JobControllerImpl implements JobController, ModifyNotificationDelegate {
     private final static Logger LOG =
@@ -137,8 +140,11 @@ public class JobControllerImpl implements JobController, ModifyNotificationDeleg
     }
 
     private String[] getStatements(String jobDatabase, String query) {
-        String[] strings = {"use " + jobDatabase,query};
-        return strings;
+      String[] queries = query.split(";");
+
+
+      String[] strings = {"use " + jobDatabase};
+      return ArrayUtils.addAll(strings, queries);
     }
 
     private void setupHiveBeforeQueryExecute() {
