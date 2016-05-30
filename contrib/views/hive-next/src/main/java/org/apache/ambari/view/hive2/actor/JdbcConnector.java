@@ -10,6 +10,7 @@ import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.hive2.ConnectionDelegate;
 import org.apache.ambari.view.hive2.actor.message.Connect;
 import org.apache.ambari.view.hive2.actor.message.HiveMessage;
+import org.apache.ambari.view.hive2.actor.message.JobExecutionCompleted;
 import org.apache.ambari.view.hive2.actor.message.RegisterActor;
 import org.apache.ambari.view.hive2.actor.message.job.ExecutionFailed;
 import org.apache.ambari.view.hive2.actor.message.lifecycle.CleanUp;
@@ -83,7 +84,7 @@ public abstract class JdbcConnector extends HiveActor {
   /**
    * true if the actor is currently executing any job.
    */
-  private boolean executing = false;
+  protected boolean executing = false;
 
   /**
    * true if the currently executing job is async job.
@@ -108,7 +109,7 @@ public abstract class JdbcConnector extends HiveActor {
     this.storage = storage;
     this.lastActivityTimestamp = System.currentTimeMillis();
     exceptionWriter = getContext().actorOf(Props.create(ExceptionWriter.class, hdfsApi, storage)
-      .withDispatcher("akka.actor.misc-dispatcher"),
+        .withDispatcher("akka.actor.misc-dispatcher"),
       "Exception-Writer-" + viewContext.getUsername() + "-" + viewContext.getInstanceName());
     deathWatch.tell(new RegisterActor(exceptionWriter), self());
     actorConfiguration = new HiveActorConfiguration(viewContext);
@@ -125,6 +126,8 @@ public abstract class JdbcConnector extends HiveActor {
       keepAlive();
     } else if (message instanceof CleanUp) {
       cleanUp();
+    } else if (message instanceof JobExecutionCompleted) {
+      jobExecutionCompleted();
     } else {
       handleNonLifecycleMessage(hiveMessage);
     }
@@ -148,8 +151,14 @@ public abstract class JdbcConnector extends HiveActor {
   protected abstract void cleanUpChildren();
 
   private void keepAlive() {
-    LOG.info("Keep alive for {} sent by {}", self(), sender());
     lastActivityTimestamp = System.currentTimeMillis();
+  }
+
+  private void jobExecutionCompleted() {
+    // Set is executing as false so that the inactivity checks can finish cleanup
+    // after timeout
+    LOG.info("Job execution completed for user: {}. Results are ready to be fetched", username);
+    this.executing = false;
   }
 
   protected Optional<String> getJobId() {
@@ -193,7 +202,11 @@ public abstract class JdbcConnector extends HiveActor {
   }
 
   private void checkInactivity() {
-    LOG.info("Inactivity check");
+    LOG.info("Inactivity check, executing status: {}", executing);
+    if (executing) {
+      keepAlive();
+      return;
+    }
     long current = System.currentTimeMillis();
     if ((current - lastActivityTimestamp) > actorConfiguration.getInactivityTimeout(MAX_INACTIVITY_INTERVAL)) {
       // Stop all the sub-actors created
@@ -207,6 +220,13 @@ public abstract class JdbcConnector extends HiveActor {
       stopTeminateInactivityScheduler();
       return;
     }
+
+    LOG.info("Termination check, executing status: {}", executing);
+    if (executing) {
+      keepAlive();
+      return;
+    }
+
     long current = System.currentTimeMillis();
     if ((current - lastActivityTimestamp) > actorConfiguration.getTerminationTimeout(MAX_TERMINATION_INACTIVITY_INTERVAL)) {
       cleanUpWithTermination();
@@ -214,9 +234,13 @@ public abstract class JdbcConnector extends HiveActor {
   }
 
   protected void cleanUp() {
+    if(jobId != null) {
+      LOG.debug("{} :: Cleaning up resources for inactivity for jobId: {}", self().path().name(), jobId);
+    } else {
+      LOG.debug("{} ::Cleaning up resources with inactivity for Sync execution.", self().path().name());
+    }
+    this.executing = false;
     cleanUpStatementAndResultSet();
-    LOG.info("Sending poison pill to exception writer");
-
     cleanUpChildren();
     cleanupExceptionWriter();
     stopInactivityScheduler();
@@ -224,6 +248,7 @@ public abstract class JdbcConnector extends HiveActor {
   }
 
   protected void cleanUpWithTermination() {
+    LOG.debug("{} :: Cleaning up resources with inactivity for Sync execution.", self().path().name());
     cleanUpStatementAndResultSet();
 
     cleanUpChildren();

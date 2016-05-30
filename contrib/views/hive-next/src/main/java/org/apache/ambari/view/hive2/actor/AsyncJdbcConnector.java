@@ -77,6 +77,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
   }
 
   private void execute(AsyncJob message) {
+    this.executing = true;
     this.jobId = message.getJobId();
     updateJobStatus(jobId,Job.JOB_STATE_INITIALIZED);
     String errorMessage = "Cannot execute job for id: " + message.getJobId() + ", user: " + message.getUsername() + ". Not connected to Hive";
@@ -126,7 +127,7 @@ public class AsyncJdbcConnector extends JdbcConnector {
         // Wait for operation to complete and add results;
 
         ActorRef asyncQueryExecutor = getContext().actorOf(
-                Props.create(AsyncQueryExecutor.class,currentStatement.get(),storage,jobId)
+                Props.create(AsyncQueryExecutor.class, self(), currentStatement.get(),storage,jobId)
                   .withDispatcher("akka.actor.result-dispatcher"),
                 message.getUsername() + ":" + message.getJobId() + "-asyncQueryExecutor");
         deathWatch.tell(new RegisterActor(asyncQueryExecutor),self());

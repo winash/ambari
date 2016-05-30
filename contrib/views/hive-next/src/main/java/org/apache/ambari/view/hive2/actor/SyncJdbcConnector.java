@@ -57,6 +57,7 @@ public class SyncJdbcConnector extends JdbcConnector {
   }
 
   protected void execute(final SyncJob job) {
+    this.executing = true;
     executeJob(new Operation<SyncJob>() {
       @Override
       SyncJob getJob() {
