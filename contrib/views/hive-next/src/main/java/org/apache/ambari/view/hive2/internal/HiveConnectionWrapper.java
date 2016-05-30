@@ -71,7 +71,7 @@ public class HiveConnectionWrapper implements Connectable,Supplier<HiveConnectio
   @Override
   public boolean isOpen() {
     try {
-      return connection != null && !connection.isClosed();
+      return connection != null && !connection.isClosed() && connection.isValid(100);
     } catch (SQLException e) {
       // in case of an SQ error just return
       return false;

@@ -182,6 +182,8 @@ public abstract class JdbcConnector extends HiveActor {
       }
     } catch (ConnectionException e) {
       exceptionWriter.tell(new ExecutionFailed(e.getMessage(), e), ActorRef.noSender());
+      cleanUp();
+      return;
     }
 
     this.terminateActorScheduler = system.scheduler().schedule(
