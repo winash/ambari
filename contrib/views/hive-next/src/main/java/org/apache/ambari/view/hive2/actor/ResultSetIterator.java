@@ -41,6 +41,7 @@ public class ResultSetIterator extends HiveActor {
   private int columnCount;
   private Storage storage;
   boolean buffered = false;
+  boolean async = false;
   Result lastResult;
 
 
@@ -57,6 +58,7 @@ public class ResultSetIterator extends HiveActor {
     this(parent, resultSet);
     this.storage = storage;
     this.buffered = true;
+    this.async = true;
   }
 
   public ResultSetIterator(ActorRef parent, ResultSet resultSet) {
@@ -139,6 +141,9 @@ public class ResultSetIterator extends HiveActor {
       if (index == 0) {
         // We have hit end of resultSet
         sender().tell(new NoMoreItems(), self());
+        if(!async) {
+          cleanUpResources();
+        }
       } else {
         Result result = new Result(rows, columnDescriptions);
         lastResult = result;
