@@ -34,7 +34,7 @@ export default DS.RESTAdapter.extend({
       return !!param;
     });
 
-    if (params[params.length - 3] === 'HIVE-NEXT') {
+    if (params[params.length - 3] === 'HIVE') {
       version = params[params.length - 2];
       instanceName = params[params.length - 1];
     }
